@@ -28,12 +28,13 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;background:#111114;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:13px;line-height:1.4}
-  header.topbar{background:linear-gradient(90deg,#0E0E10 0%,#1a1a1c 55%,#C8102E 100%);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 10px rgba(0,0,0,.4);position:sticky;top:0;z-index:10}
-  header.topbar h1{margin:0;font-size:18px;letter-spacing:.5px;font-weight:700}
+  header.topbar{background:linear-gradient(90deg,#0E0E10 0%,#1a1a1c 55%,#C8102E 100%);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 10px rgba(0,0,0,.4);position:sticky;top:0;z-index:10;min-height:56px;overflow:hidden}
+  header.topbar h1{margin:0;font-size:18px;letter-spacing:.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   header.topbar h1 span.sub{font-weight:400;opacity:.85;font-size:13px;margin-left:10px;border-left:1px solid rgba(255,255,255,.35);padding-left:12px}
-  .brand{display:flex;align-items:center;gap:12px}
-  .brand .logo-img{height:40px;width:auto}
-  .meta{font-size:12px;text-align:right;opacity:.9}
+  .brand{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+  .brand .logo-img{height:40px;width:auto;flex-shrink:0}
+  .meta{font-size:12px;text-align:right;opacity:.9;flex-shrink:0;white-space:nowrap}
+  @media(max-width:900px){header.topbar{flex-wrap:wrap;gap:8px}header.topbar h1{font-size:15px}header.topbar h1 span.sub{display:none}.meta{font-size:11px;width:100%;text-align:left}}
   nav.tabs{background:#18181b;border-bottom:1px solid var(--line);display:flex;padding:0 24px;overflow-x:auto;position:sticky;top:62px;z-index:9}
   nav.tabs::-webkit-scrollbar{height:3px}
   nav.tabs::-webkit-scrollbar-thumb{background:#444;border-radius:3px}
@@ -129,6 +130,12 @@
   table.team th{background:var(--rei-red);color:#fff;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;font-weight:600}
   table.team td{padding:8px 12px;border-bottom:1px solid var(--line);color:var(--ink)}
   table.team tr:hover td{background:rgba(255,255,255,.03)}
+  .sub-tabs{display:flex;gap:4px;margin-bottom:14px;background:#18181b;border:1px solid var(--line);border-radius:8px;padding:4px;overflow-x:auto}
+  .sub-tab{background:none;border:none;padding:8px 18px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:6px;white-space:nowrap;transition:all .15s}
+  .sub-tab.active{background:var(--rei-red);color:#fff}
+  .sub-tab:hover:not(.active){color:#fff;background:rgba(255,255,255,.06)}
+  .sub-panel{display:none}
+  .sub-panel.active{display:block}
   body.embed-mode{background:transparent}
   body.embed-mode header.topbar{display:none}
   body.embed-mode nav.tabs{top:0}
@@ -163,7 +170,7 @@
   <button data-tab="strategy">Strategy &amp; Initiatives</button>
   <button data-tab="operations">Operations</button>
   <button data-tab="team">Team &amp; Organization</button>
-  <button data-tab="technology">Pole Inspection</button>
+  <button data-tab="technology">Tech &amp; AI</button>
   <button data-tab="risks">Risks &amp; Outlook</button>
 </nav>
 <main>
@@ -682,8 +689,13 @@
 
 <!-- ============ TECHNOLOGY ============ -->
 <section class="section" id="technology">
-  <h2 class="section-title"><span class="dot"></span>REI Pole Inspection Dashboard</h2>
-  <iframe src="pole-dashboard.html" style="width:100%;height:calc(100vh - 140px);min-height:800px;border:1px solid var(--line);border-radius:8px;background:#111214;" allowfullscreen></iframe>
+  <h2 class="section-title"><span class="dot"></span>Technology &amp; AI</h2>
+  <div class="sub-tabs" id="tech-sub-tabs">
+    <button class="sub-tab active" data-subtab="pole-inspection">Pole Inspection</button>
+  </div>
+  <div class="sub-panel active" id="subtab-pole-inspection">
+    <iframe src="pole-dashboard.html" style="width:100%;height:calc(100vh - 200px);min-height:800px;border:1px solid var(--line);border-radius:8px;background:#111214;" allowfullscreen></iframe>
+  </div>
 </section>
 
 <!-- ============ RISKS ============ -->
@@ -1010,6 +1022,18 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
   options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+(ctx.dataset.yAxisID==='y1'?ctx.parsed.y.toFixed(1)+'%':'$'+ctx.parsed.y.toLocaleString()+'K')}}},
     scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>'$'+(v/1e3).toFixed(0)+'M'}},y1:{position:'right',min:0,max:100,ticks:{callback:v=>v+'%'},grid:{drawOnChartArea:false}}}}});
 
+
+// Sub-tab switching within Tech & AI
+document.querySelectorAll('.sub-tab').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var parent=this.closest('.section');
+    parent.querySelectorAll('.sub-tab').forEach(function(b){b.classList.remove('active')});
+    parent.querySelectorAll('.sub-panel').forEach(function(p){p.classList.remove('active')});
+    this.classList.add('active');
+    var target=document.getElementById('subtab-'+this.getAttribute('data-subtab'));
+    if(target) target.classList.add('active');
+  });
+});
 </script>
 </body>
 </html>
