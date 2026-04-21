@@ -1,0 +1,2822 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REI Pole Inspection — Dashboard (sample)</title>
+  <meta name="description" content="Self-contained internal-review snapshot of the REI Pole Inspection web dashboard. Top-bar nav, clickable stat cards, working filters, restyled to match the REI board dashboard look.">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    /* =================================================================
+     * REI Pole Inspection — single-file dashboard snapshot
+     *
+     * Faithfully reproduces the live web frontend's behavior:
+     *   - Dashboard with eight clickable KPI tiles that deep-link into
+     *     the Inspections queue with the matching filter pre-applied
+     *   - Inspections queue with filter chip strip, search, dropdowns,
+     *     NESC checkbox, pagination — all wired through URL hash params
+     *   - Pole detail page (sample summary)
+     *   - Hash-based router so the file works straight off disk (file://)
+     *
+     * Visual style matches REI's board-dashboard reference:
+     *   - DM Sans / DM Mono
+     *   - Dark theme (#111214 base, REI red #C41230 accent)
+     *   - Sticky top-bar tab navigation (not a sidebar)
+     *   - Chart.js for the donut + source bars
+     *   - Pills instead of pastel badges
+     *
+     * All numbers are sample data. The dataset is generated at load
+     * from a seeded PRNG so it is identical on every reload, and the
+     * dashboard counts match the per-row dispositions exactly.
+     * ================================================================= */
+    :root {
+      --red: #C41230;
+      --red-dim: #a8102a;
+      --red-soft: rgba(196,18,48,0.12);
+      --dark: #111214;
+      --dark-2: #1a1c20;
+      --dark-3: #22252b;
+      --dark-4: #2d3038;
+      --border: rgba(255,255,255,0.07);
+      --border-light: rgba(255,255,255,0.12);
+      --text-primary: #f0f1f3;
+      --text-secondary: #8b8f9a;
+      --text-muted: #565b68;
+      --green: #22c55e;
+      --green-bg: rgba(34,197,94,0.1);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245,158,11,0.1);
+      --yellow: #fcd34d;
+      --yellow-bg: rgba(252,211,77,0.12);
+      --blue: #3b82f6;
+      --blue-bg: rgba(59,130,246,0.1);
+      --orange: #f97316;
+      --orange-bg: rgba(249,115,22,0.1);
+      --purple: #a78bfa;
+      --purple-bg: rgba(167,139,250,0.12);
+      --rose: #f87171;
+      --rose-bg: rgba(248,113,113,0.12);
+      --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --mono: 'DM Mono', ui-monospace, monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--dark);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    a { color: var(--text-primary); text-decoration: none; }
+    a:hover { text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; font-size: 13px; color: inherit; }
+    code { font-family: var(--mono); font-size: 12px; background: var(--dark); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); }
+
+    /* HEADER */
+    .header {
+      background: var(--dark-2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .logo {
+      width: 32px; height: 32px;
+      background: var(--red);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo svg { width: 18px; height: 18px; }
+    .header-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .header-sub { font-size: 12px; color: var(--text-secondary); margin-top: 1px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .conf-badge {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--red);
+      background: var(--red-soft);
+      border: 1px solid rgba(196,18,48,0.25);
+      padding: 4px 10px; border-radius: 20px;
+    }
+    .header-date { font-size: 12px; color: var(--text-muted); font-family: var(--mono); }
+
+    /* NAV */
+    .nav-bar {
+      background: var(--dark-2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex;
+      gap: 2px;
+      overflow-x: auto;
+      position: sticky;
+      top: 60px;
+      z-index: 99;
+    }
+    .nav-bar::-webkit-scrollbar { height: 0; }
+    .nav-link {
+      padding: 14px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: var(--font);
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+    .nav-link:hover { color: var(--text-primary); text-decoration: none; }
+    .nav-link.active { color: var(--text-primary); border-bottom-color: var(--red); }
+    .nav-link .ico { font-size: 14px; opacity: 0.85; }
+
+    /* MAIN */
+    .main { padding: 28px 32px; max-width: 1200px; margin: 0 auto; }
+
+    /* SAMPLE-DATA RIBBON */
+    .ribbon {
+      background: rgba(245,158,11,0.07);
+      border: 1px solid rgba(245,158,11,0.25);
+      color: #fcd34d;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 12px;
+    }
+    .ribbon strong { color: #fde68a; font-weight: 600; }
+
+    /* PAGE HEADER */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .page-header h1 { font-size: 22px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .page-header .subtitle { color: var(--text-secondary); font-size: 13px; }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12.5px;
+      font-family: var(--font);
+      transition: all 0.15s;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn-primary { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn-primary:hover { background: var(--red-dim); border-color: var(--red-dim); }
+    .btn-outline {
+      background: var(--dark-3);
+      border: 1px solid var(--border-light);
+      color: var(--text-primary);
+    }
+    .btn-outline:hover { background: var(--dark-4); border-color: rgba(255,255,255,0.2); }
+    .btn-sm { padding: 5px 11px; font-size: 11.5px; }
+    .btn[disabled] { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+    /* CARDS */
+    .card {
+      background: var(--dark-3);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    /* GRID */
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media (max-width: 800px) { .two, .three { grid-template-columns: 1fr; } }
+
+    /* STAT TILES (clickable KPI cards) */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-tile {
+      display: block;
+      background: var(--dark-3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      color: inherit;
+      text-decoration: none;
+      transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+      cursor: pointer;
+    }
+    .stat-tile:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-light);
+      background: var(--dark-4);
+      text-decoration: none;
+    }
+    .stat-tile .label {
+      font-size: 11px; font-weight: 500; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px;
+    }
+    .stat-tile .num {
+      font-size: 26px; font-weight: 600; line-height: 1; margin-bottom: 4px;
+      color: var(--text-primary);
+    }
+    .stat-tile .sub { font-size: 11px; color: var(--text-secondary); }
+
+    /* CHARTS */
+    .chart-wrap { position: relative; width: 100%; }
+
+    /* KEY METRICS */
+    .key-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .metric-tile {
+      background: var(--dark-4); border-radius: 10px; padding: 16px; text-align: center;
+      border: 1px solid var(--border);
+    }
+    .metric-tile .v { font-size: 26px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .metric-tile .l { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+    .metric-tile.green .v { color: var(--green); }
+    .metric-tile.amber .v { color: var(--amber); }
+    .metric-tile.red .v { color: var(--rose); }
+    @media (max-width: 800px) { .key-metrics { grid-template-columns: 1fr; } }
+
+    /* TABLES */
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em;
+      color: var(--text-muted);
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      background: transparent;
+    }
+    td {
+      padding: 10px 10px;
+      font-size: 13px;
+      color: var(--text-primary);
+      border-bottom: 1px solid var(--border);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr.row-link { cursor: pointer; transition: background 0.1s; }
+    tr.row-link:hover td { background: var(--dark-4); }
+    td.mono { font-family: var(--mono); }
+    td.num-cell { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+    /* PILLS (replaces .badge) */
+    .pill {
+      display: inline-block;
+      font-size: 11px; font-weight: 600;
+      padding: 3px 10px; border-radius: 20px;
+      white-space: nowrap;
+    }
+    .pill-pass { background: var(--green-bg); color: var(--green); }
+    .pill-monitor { background: var(--yellow-bg); color: var(--yellow); }
+    .pill-treat { background: var(--orange-bg); color: var(--orange); }
+    .pill-reject { background: var(--rose-bg); color: var(--rose); }
+    .pill-priority {
+      background: var(--red);
+      color: #fff;
+    }
+    .pill-engineering { background: var(--blue-bg); color: var(--blue); }
+    .pill-na { background: var(--dark-4); color: var(--text-muted); }
+    .pill-pending { background: var(--amber-bg); color: var(--amber); }
+    .pill-approved { background: var(--green-bg); color: var(--green); }
+    .pill.with-star::before { content: "* "; opacity: 0.85; }
+
+    /* SOURCE TAGS */
+    .source-tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+      font-family: var(--mono);
+    }
+    .source-DETEC { background: var(--blue-bg); color: var(--blue); }
+    .source-LEC { background: var(--purple-bg); color: var(--purple); }
+
+    /* INPUTS / SELECTS */
+    input.f, select.f {
+      padding: 8px 11px;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      font-size: 12.5px;
+      font-family: var(--font);
+      background: var(--dark-4);
+      color: var(--text-primary);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input.f:focus, select.f:focus {
+      outline: none;
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(196,18,48,0.15);
+    }
+    select.f { padding-right: 28px; appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%), linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%); background-position: right 12px center, right 7px center; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+
+    /* CHIP STRIP */
+    .chip-strip {
+      display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 14px;
+    }
+    .chip-strip .chip-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px; }
+    .chip {
+      font-size: 11.5px; font-weight: 500;
+      background: var(--dark-4);
+      color: var(--text-primary);
+      padding: 4px 10px; border-radius: 20px;
+      border: 1px solid var(--border-light);
+    }
+
+    .filter-row {
+      display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    }
+    .nesc-checkbox-wrap {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12.5px; color: var(--text-secondary); cursor: pointer;
+      padding: 8px 11px; border: 1px solid var(--border-light); border-radius: 6px;
+      background: var(--dark-4); user-select: none;
+    }
+    .nesc-checkbox-wrap input { accent-color: var(--red); }
+
+    /* PAGER */
+    .pager-wrap {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 16px; padding: 4px 4px;
+    }
+    .pager-text { font-size: 12px; color: var(--text-muted); font-family: var(--mono); }
+
+    /* PLACEHOLDER PANELS */
+    .placeholder {
+      padding: 60px 24px;
+      text-align: center;
+      color: var(--text-secondary);
+      background: var(--dark-3);
+      border-radius: 14px;
+      border: 1px dashed var(--border-light);
+    }
+    .placeholder h2 { color: var(--text-primary); margin-bottom: 10px; font-size: 16px; font-weight: 600; }
+    .placeholder p { font-size: 13px; max-width: 540px; margin: 0 auto; line-height: 1.6; }
+
+    /* FOOTER */
+    .footer { text-align: center; padding: 32px 24px 24px; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border); margin-top: 32px; }
+
+    /* EXPORT MODAL ------------------------------------------------- */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(2px);
+      z-index: 1000;
+      display: none;
+      overflow-y: auto;
+      padding: 5vh 16px;
+    }
+    .modal-backdrop.open { display: flex; align-items: flex-start; justify-content: center; }
+    .modal {
+      background: var(--dark-2);
+      border: 1px solid var(--border-light);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 780px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      overflow: hidden;
+    }
+    .modal-head {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+    }
+    .modal-head h2 { font-size: 16px; font-weight: 600; color: var(--text-primary); margin: 0; }
+    .modal-head .sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .modal-close {
+      background: transparent; border: none; color: var(--text-secondary);
+      font-size: 22px; line-height: 1; padding: 4px 8px; border-radius: 6px;
+    }
+    .modal-close:hover { background: var(--dark-4); color: var(--text-primary); }
+    .modal-body { padding: 20px 22px; overflow-y: auto; flex: 1; }
+    .modal-foot {
+      padding: 14px 22px;
+      border-top: 1px solid var(--border);
+      background: var(--dark-3);
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      flex-wrap: wrap;
+    }
+    .modal-foot .summary { font-size: 12px; color: var(--text-secondary); }
+    .modal-foot .summary b { color: var(--text-primary); font-weight: 600; }
+
+    .section-title {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .section + .section { margin-top: 22px; }
+
+    .opt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+    .opt-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    @media (max-width: 600px) { .opt-grid-2 { grid-template-columns: 1fr; } }
+    .opt {
+      display: flex; gap: 10px; padding: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--dark-3);
+      border-radius: 8px;
+      cursor: pointer;
+      align-items: flex-start;
+      transition: all 0.12s ease;
+    }
+    .opt:hover { border-color: var(--border-light); background: var(--dark-4); }
+    .opt.selected { border-color: var(--red); background: rgba(196,18,48,0.08); }
+    .opt input[type="radio"] { margin-top: 3px; accent-color: var(--red); flex-shrink: 0; }
+    .opt .opt-title { font-weight: 600; font-size: 13px; color: var(--text-primary); }
+    .opt .opt-desc { font-size: 11px; color: var(--text-secondary); margin-top: 2px; line-height: 1.45; }
+
+    .geo-note {
+      font-size: 11.5px; color: #93c5fd;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2);
+      padding: 8px 12px; border-radius: 6px; margin-bottom: 12px;
+    }
+
+    .field-group {
+      border: 1px solid var(--border);
+      background: var(--dark-3);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .field-group .grp-head {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 600; font-size: 12.5px; color: var(--text-primary);
+      margin-bottom: 8px; cursor: pointer;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .field-group .grp-head input { accent-color: var(--red); }
+    .field-group .field-list { display: flex; flex-direction: column; gap: 5px; }
+    .field-group label.field {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--text-primary);
+      cursor: pointer; padding: 2px 0;
+    }
+    .field-group label.field input { accent-color: var(--red); }
+    .field-group label.field.disabled { color: var(--text-muted); cursor: not-allowed; }
+    .field-group label.field .req-tag { font-size: 10px; color: var(--text-muted); margin-left: 4px; }
+
+    .field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+
+    .field-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+    .field-toolbar .right { display: flex; gap: 6px; }
+
+    .err-banner {
+      background: rgba(248,113,113,0.12);
+      color: var(--rose);
+      border: 1px solid rgba(248,113,113,0.3);
+      padding: 9px 12px; border-radius: 6px;
+      margin-bottom: 14px; font-size: 12.5px;
+    }
+
+    /* IMPORT BUTTON / FILE INPUT */
+    .import-wrap {
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .import-status {
+      font-size: 11px; color: var(--text-muted); font-family: var(--mono);
+      max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .import-status.live { color: var(--green); }
+
+    /* TOAST (post-import / post-export) */
+    .toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: var(--dark-3);
+      border: 1px solid var(--border-light);
+      border-left: 3px solid var(--red);
+      color: var(--text-primary);
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      z-index: 2000;
+      max-width: 360px;
+      display: none;
+    }
+    .toast.show { display: block; animation: toastIn 0.2s ease-out; }
+    .toast.success { border-left-color: var(--green); }
+    .toast.error { border-left-color: var(--rose); }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--dark-2); }
+    ::-webkit-scrollbar-thumb { background: var(--dark-4); border-radius: 3px; }
+
+    /* RESPONSIVE */
+    @media (max-width: 700px) {
+      .header { padding: 0 16px; }
+      .nav-bar { padding: 0 16px; }
+      .main { padding: 20px 16px; }
+      .header-date { display: none; }
+    }
+
+    /* PRINT */
+    @media print {
+      body { background: white; color: #111; }
+      .header, .nav-bar, .ribbon { display: none !important; }
+      .main { padding: 8px; }
+      .card, .stat-tile, .metric-tile, .placeholder {
+        background: white !important;
+        color: #111 !important;
+        border-color: #ccc !important;
+      }
+      th, td { border-color: #ccc !important; color: #111 !important; }
+      .stat-tile .label, .pager-text, .footer, .text-secondary { color: #555 !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M3 17V5l5 4 4-3 5 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <div class="header-title">REI Pole Inspection</div>
+        <div class="header-sub" id="hdr-sub">Review Dashboard &mdash; Sample data</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="header-date" id="hdr-date">2026-04-21</span>
+      <div class="import-wrap" title="Replace the sample dataset with a real CSV exported from the live dashboard">
+        <span class="import-status" id="import-status">Sample data &mdash; internal review</span>
+        <button class="btn btn-outline btn-sm" onclick="triggerImport()">&#128193; Import CSV</button>
+        <button class="btn btn-outline btn-sm" id="reset-sample-btn" onclick="resetToSampleData()" style="display:none;">Reset</button>
+      </div>
+      <span class="conf-badge">Internal Review</span>
+    </div>
+    <input type="file" id="import-file-input" accept=".csv,text/csv" onchange="handleImportFile(event)" style="display:none;">
+  </header>
+
+  <!-- NAV (top tab bar instead of sidebar) -->
+  <nav class="nav-bar" id="nav-bar"></nav>
+
+  <main class="main" id="main"></main>
+
+  <div class="footer">
+    REI Utility Services, LLC &middot; Pole Inspection Platform &middot; Formula V1.2 (sample) &middot; <span id="ftr-date"></span>
+  </div>
+
+  <script>
+  /* ============================================================
+   * 1. Hash router (#/path?key=value&key=value)
+   * ============================================================ */
+  function parseHash() {
+    const raw = (window.location.hash || '#/').slice(1);
+    const [path, queryStr = ''] = raw.split('?');
+    const query = {};
+    if (queryStr) {
+      for (const pair of queryStr.split('&')) {
+        if (!pair) continue;
+        const [k, v = ''] = pair.split('=');
+        query[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' '));
+      }
+    }
+    return { path: path || '/', query };
+  }
+  function buildHash(path, query = {}) {
+    const qs = Object.entries(query)
+      .filter(([, v]) => v !== '' && v != null)
+      .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v))
+      .join('&');
+    return '#' + path + (qs ? '?' + qs : '');
+  }
+  function navigate(path, query = {}) {
+    window.location.hash = buildHash(path, query).slice(1);
+  }
+
+  /* ============================================================
+   * 2. Top-bar nav (replaces sidebar)
+   * ============================================================ */
+  const NAV = [
+    { to: '/',            label: 'Dashboard',    icon: '\u229E', exact: true  },
+    { to: '/inspections', label: 'Inspections',  icon: '\u2630', exact: false },
+    { to: '/map',         label: 'Map View',     icon: '\u25CE', exact: true  },
+    { to: '/reports',     label: 'Reports',      icon: '\u25A4', exact: true  },
+  ];
+  function renderNav() {
+    const { path } = parseHash();
+    const navEl = document.getElementById('nav-bar');
+    navEl.innerHTML = NAV.map(n => {
+      const isActive = n.exact
+        ? path === n.to
+        : (path === n.to || path.startsWith(n.to + '/') || path.startsWith(n.to + '?'));
+      return `<a href="${buildHash(n.to)}" class="nav-link${isActive ? ' active' : ''}">
+        <span class="ico">${n.icon}</span><span>${n.label}</span>
+      </a>`;
+    }).join('');
+  }
+
+  /* ============================================================
+   * 3. Sample data — seeded PRNG for stable, repeatable values
+   *    (unchanged from prior snapshot — same numbers, same seeds)
+   * ============================================================ */
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+  function rand(rng, min, max) { return min + rng() * (max - min); }
+  function randInt(rng, min, max) { return Math.floor(rand(rng, min, max + 1)); }
+
+  const INSPECTORS = ['R. Marsh', 'J. Alvarez', 'C. Nguyen', 'M. Patel', 'D. Chen', 'S. Rivera', 'B. Carter'];
+  const TEST_TYPES = ['Sound + Bore', 'Sound + Bore', 'Sound + Bore', 'Visual Only'];
+  const DISPOSITION_PLAN = [
+    { disposition: 'pass',                 count: 812 },
+    { disposition: 'monitor',              count: 198 },
+    { disposition: 'treat',                count: 121 },
+    { disposition: 'reject',               count: 40  },
+    { disposition: 'reinforceable_reject', count: 24  },
+    { disposition: 'priority_reject',      count: 18  },
+    { disposition: 'engineering_review',   count: 35  },
+  ];
+
+  function buildSampleDataset() {
+    const rng = mulberry32(20260421);
+    const today = new Date('2026-04-21T00:00:00Z');
+    const items = [];
+    let id = 1;
+    let nextPole = 44000;
+    for (const grp of DISPOSITION_PLAN) {
+      for (let i = 0; i < grp.count; i++) {
+        const ds = rng() < 0.756 ? 'DETEC' : 'LEC';
+        const test = pick(rng, TEST_TYPES);
+        const isVisual = test === 'Visual Only';
+        let rs, pf, rle;
+        if (isVisual) { rs = null; pf = null; rle = null; }
+        else if (grp.disposition === 'pass') { rs = rand(rng, 78, 96); pf = 100 - rs + rand(rng, -2, 2); rle = rand(rng, 22, 38); }
+        else if (grp.disposition === 'monitor') { rs = rand(rng, 67, 78); pf = 100 - rs + rand(rng, -2, 2); rle = rand(rng, 14, 22); }
+        else if (grp.disposition === 'treat') { rs = rand(rng, 50, 67); pf = 100 - rs + rand(rng, -2, 2); rle = rand(rng, 6, 14); }
+        else if (grp.disposition === 'reject') { rs = rand(rng, 38, 50); pf = 100 - rs + rand(rng, -2, 2); rle = rand(rng, 1, 5); }
+        else if (grp.disposition === 'reinforceable_reject') { rs = rand(rng, 30, 42); pf = 100 - rs + rand(rng, -2, 2); rle = rand(rng, 1, 3); }
+        else if (grp.disposition === 'priority_reject') { rs = rand(rng, 20, 38); pf = 100 - rs + rand(rng, -2, 2); rle = rand(rng, 0.2, 1.5); }
+        else { rs = rand(rng, 55, 80); pf = 100 - rs + rand(rng, -3, 3); rle = rand(rng, 8, 25); }
+        const d = new Date(today.getTime() - randInt(rng, 0, 89) * 86400000);
+        items.push({
+          id, pole_number: 'P-' + nextPole, data_source: ds,
+          inspection_date: d.toISOString().slice(0, 10),
+          inspector_name: pick(rng, INSPECTORS),
+          test_type: test,
+          original_circ: isVisual ? null : rand(rng, 32, 48),
+          effective_circ: isVisual ? null : rand(rng, 28, 46),
+          shell_thickness: isVisual ? null : rand(rng, 1.5, 4.5),
+          void_diameter: null,
+          remaining_strength_pct: rs,
+          percent_failure: pf,
+          relative_life_expectancy: rle,
+          disposition: grp.disposition,
+          user_override: null,
+          review_status: 'approved',
+          nesc_reject: false,
+        });
+        id++; nextPole++;
+      }
+    }
+    const pendingRng = mulberry32(99);
+    let marked = 0;
+    while (marked < 47) {
+      const idx = Math.floor(pendingRng() * items.length);
+      if (items[idx].review_status !== 'submitted') { items[idx].review_status = 'submitted'; marked++; }
+    }
+    const nescRng = mulberry32(7);
+    let nescMarked = 0;
+    const rejectFamily = ['reject', 'reinforceable_reject', 'priority_reject'];
+    while (nescMarked < 12) {
+      const idx = Math.floor(nescRng() * items.length);
+      if (rejectFamily.includes(items[idx].disposition) && !items[idx].nesc_reject) {
+        items[idx].nesc_reject = true; nescMarked++;
+      }
+    }
+    const overrideRng = mulberry32(3);
+    let overridden = 0;
+    const overridePool = ['pass', 'monitor', 'treat'];
+    while (overridden < 6) {
+      const idx = Math.floor(overrideRng() * items.length);
+      if (!items[idx].user_override && items[idx].disposition !== 'pass') {
+        items[idx].user_override = pick(overrideRng, overridePool); overridden++;
+      }
+    }
+    // Assign a plausible void_diameter to a fraction of items based on disposition.
+    // Uses a separate seeded PRNG so the rest of the dataset stays byte-identical
+    // to the prior snapshot (no shifting of inspector/date/source distributions).
+    const voidRng = mulberry32(17);
+    for (const it of items) {
+      if (it.original_circ == null || it.effective_circ == null) continue;
+      const effDiam = it.effective_circ / Math.PI;
+      const maxVoid = Math.max(0, effDiam - (it.shell_thickness || 0) * 2 - 0.4);
+      let prob = 0, lo = 0, hi = 0;
+      switch (it.disposition) {
+        case 'pass':                 prob = 0.00; break;
+        case 'monitor':              prob = 0.10; lo = 0.4; hi = 1.2; break;
+        case 'treat':                prob = 0.55; lo = 0.8; hi = 2.2; break;
+        case 'reject':               prob = 0.85; lo = 1.8; hi = 3.6; break;
+        case 'reinforceable_reject': prob = 0.95; lo = 2.4; hi = 4.4; break;
+        case 'priority_reject':      prob = 1.00; lo = 3.0; hi = 5.2; break;
+        case 'engineering_review':   prob = 0.30; lo = 1.0; hi = 3.0; break;
+      }
+      if (prob > 0 && voidRng() < prob) {
+        let v = lo + voidRng() * (hi - lo);
+        if (maxVoid > 0 && v > maxVoid) v = maxVoid * (0.7 + voidRng() * 0.25);
+        it.void_diameter = Math.max(0, v);
+      }
+    }
+
+    // Fill in the wider field schema the live exports support: pole metadata,
+    // geo coords (Texas/Oklahoma service area), comment fields, assessment
+    // sub-fields, disposition reasons. Separate seeded PRNG keeps the prior
+    // dataset (dispositions / dates / inspectors / void) byte-identical.
+    const xRng = mulberry32(2026);
+    const SPECIES = ['Southern Pine', 'Southern Pine', 'Southern Pine', 'Western Red Cedar', 'Douglas Fir'];
+    const CLASSES = ['1', '2', '3', '3', '4', '4', '5', 'H1', 'H2'];
+    const HEIGHTS = [35, 40, 40, 45, 45, 50, 55, 60];
+    const PASS_REASONS = [
+      'Strength above retention threshold; no further action required.',
+      'No defects observed; standard re-inspection cycle.',
+      'Sound profile within nominal range for class.',
+    ];
+    const MONITOR_REASONS = [
+      'Minor circumferential loss; schedule next-cycle re-inspection.',
+      'RS within monitor band; re-bore at next visit to track decay rate.',
+      'Localized shell softening; track but no immediate intervention.',
+    ];
+    const TREAT_REASONS = [
+      'Decay present; apply fumigant + groundline paste per program spec.',
+      'Internal void detected; treat per fumigant SOP and tag for re-check at 2 yr.',
+      'Partial perimeter loss; treat and tag for follow-up.',
+    ];
+    const REJECT_REASONS = [
+      'Below minimum strength threshold for service class.',
+      'Combined void exceeds allowable cross-section loss.',
+      'Significant perimeter and internal loss; replacement required.',
+    ];
+    const REINF_REASONS = [
+      'Strength below reject threshold but reinforcement is structurally viable.',
+      'Reinforceable per program criteria; confirm sleeve compatibility on site.',
+    ];
+    const PRIORITY_REASONS = [
+      'Imminent failure risk — replace within current quarter.',
+      'Severe combined loss; remove from service and replace.',
+    ];
+    const ENG_REASONS = [
+      'Anomalous measurement profile; route to engineering review.',
+      'Class adequacy question raised; engineering to assess loading.',
+    ];
+    const TAG_INSTRUCTIONS = {
+      pass: '', monitor: 'YELLOW — re-inspect next cycle',
+      treat: 'ORANGE — treat per SOP', reject: 'RED — REPLACE',
+      reinforceable_reject: 'RED-W — REINFORCE or REPLACE',
+      priority_reject: 'RED-PRI — IMMEDIATE REPLACEMENT',
+      engineering_review: 'BLUE — engineering review pending',
+    };
+    const REVIEWERS = ['T. Hayes', 'R. Marsh', 'L. Park', 'D. Singh', 'A. Brooks'];
+
+    for (const it of items) {
+      // Geo: realistic Texas/Oklahoma bbox. ~95% of DETEC have coords, ~58%
+      // of LEC have coords (mirrors the documented LEC-coord-gap issue).
+      const wantCoord = it.data_source === 'DETEC' ? xRng() < 0.95 : xRng() < 0.58;
+      if (wantCoord) {
+        it.lat = 32.5 + (xRng() - 0.5) * 2.6;
+        it.lng = -96.3 + (xRng() - 0.5) * 4.0;
+      } else {
+        it.lat = null;
+        it.lng = null;
+      }
+
+      // Pole metadata
+      it.height_ft = pick(xRng, HEIGHTS);
+      it.pole_class = pick(xRng, CLASSES);
+      it.wood_species = pick(xRng, SPECIES);
+      it.install_year = 1968 + Math.floor(xRng() * 50);
+
+      // Inspection comment fields (mostly blank, occasional notes)
+      const noteChance = xRng();
+      if (noteChance < 0.15) {
+        it.condition_comments = pick(xRng, [
+          'Surface checks visible above groundline.',
+          'Woodpecker damage at upper third.',
+          'Some exterior weathering noted.',
+          'Minor scarring at climber spike line.',
+        ]);
+      } else { it.condition_comments = ''; }
+      if (noteChance >= 0.15 && noteChance < 0.22) {
+        it.maintenance_comments = pick(xRng, [
+          'Previous fumigant treatment 2022.',
+          'Brush cleared at base.',
+          'Anchor rod re-tightened.',
+        ]);
+      } else { it.maintenance_comments = ''; }
+      if (noteChance >= 0.22 && noteChance < 0.27) {
+        it.location_comments = pick(xRng, [
+          'Adjacent to fence line.',
+          'Behind transformer pad.',
+          'Easement on property line.',
+        ]);
+      } else { it.location_comments = ''; }
+      it.additional_remarks = '';
+
+      // Inch loss = original − effective
+      it.inch_loss = (it.original_circ != null && it.effective_circ != null)
+        ? Math.max(0, it.original_circ - it.effective_circ)
+        : null;
+
+      // Assessment block
+      it.formula_version = 'V1.2';
+      it.calculation_status = it.test_type === 'Visual Only'
+        ? 'visual_only'
+        : (xRng() < 0.96 ? 'ok' : 'low_confidence');
+
+      if (it.remaining_strength_pct != null && it.void_diameter != null && it.void_diameter > 0
+          && it.original_circ != null) {
+        const origDia = it.original_circ / Math.PI;
+        const origArea = Math.PI * (origDia / 2) ** 2;
+        const voidArea = Math.PI * (it.void_diameter / 2) ** 2;
+        const factor = Math.max(0.4, 1 - voidArea / origArea);
+        it.void_adjusted_strength_pct = Math.round(it.remaining_strength_pct * factor * 10) / 10;
+      } else {
+        it.void_adjusted_strength_pct = it.remaining_strength_pct;
+      }
+
+      if (it.shell_thickness != null && it.effective_circ != null) {
+        const effRad = (it.effective_circ / Math.PI) / 2;
+        it.shell_to_radius_ratio = effRad > 0
+          ? Math.round((it.shell_thickness / effRad) * 1000) / 1000
+          : null;
+      } else { it.shell_to_radius_ratio = null; }
+
+      it.visual_only = it.test_type === 'Visual Only' ? 'yes' : 'no';
+      it.class_adequacy_warning = (it.pole_class === '5' && it.height_ft >= 50) ? 'yes' : '';
+      it.class_adequacy_note = it.class_adequacy_warning === 'yes'
+        ? 'Class 5 pole at >=50ft may require engineering review for current loading.'
+        : '';
+      it.priority_pole = it.disposition === 'priority_reject' ? 'yes' : '';
+      it.reinforceable = it.disposition === 'reinforceable_reject' ? 'yes' : '';
+      it.reinforceable_reason = it.reinforceable === 'yes'
+        ? 'Strength loss within reinforceable program window.' : '';
+      it.pf_confidence = it.test_type === 'Visual Only'
+        ? 'low'
+        : (it.calculation_status === 'low_confidence' ? 'medium' : 'high');
+      it.data_quality_flags = (it.calculation_status === 'low_confidence') ? 'low_confidence' : '';
+
+      // Disposition narrative + tag
+      const reasonPool = {
+        pass: PASS_REASONS, monitor: MONITOR_REASONS, treat: TREAT_REASONS,
+        reject: REJECT_REASONS, reinforceable_reject: REINF_REASONS,
+        priority_reject: PRIORITY_REASONS, engineering_review: ENG_REASONS,
+      }[it.disposition] || PASS_REASONS;
+      it.reason = pick(xRng, reasonPool);
+      it.tag_instruction = TAG_INSTRUCTIONS[it.disposition] || '';
+
+      // Override / review trail
+      if (it.user_override) {
+        it.override_reason = 'Field judgment differs from formula band; manually adjusted.';
+        it.override_by = pick(xRng, REVIEWERS);
+      } else {
+        it.override_reason = '';
+        it.override_by = '';
+      }
+      if (it.review_status === 'approved') {
+        it.reviewed_by = pick(xRng, REVIEWERS);
+        const reviewDate = new Date(new Date(it.inspection_date).getTime() + (1 + Math.floor(xRng() * 14)) * 86400000);
+        it.reviewed_at = reviewDate.toISOString().slice(0, 10);
+      } else {
+        it.reviewed_by = '';
+        it.reviewed_at = '';
+      }
+    }
+
+    items.sort((a, b) => (a.inspection_date < b.inspection_date ? 1 : -1));
+    return items;
+  }
+  let ALL_ITEMS = buildSampleDataset();
+  let DATA_SOURCE_LABEL = 'Sample data \u2014 internal review';
+
+  function computeStats(items) {
+    const dispCounts = {};
+    let nesc = 0, pending = 0;
+    const sources = {};
+    const rsVals = [], pfVals = [];
+    for (const i of items) {
+      const eff = i.user_override || i.disposition;
+      dispCounts[eff] = (dispCounts[eff] || 0) + 1;
+      if (i.nesc_reject) nesc++;
+      if (i.review_status === 'submitted') pending++;
+      sources[i.data_source] = (sources[i.data_source] || 0) + 1;
+      if (i.remaining_strength_pct != null) rsVals.push(i.remaining_strength_pct);
+      if (i.percent_failure != null) pfVals.push(i.percent_failure);
+    }
+    const avg = (a) => a.length ? a.reduce((s, n) => s + n, 0) / a.length : null;
+    return {
+      total_poles: items.length,
+      total_inspections: items.length,
+      pending_review: pending,
+      pass_count: dispCounts.pass || 0,
+      monitor_count: dispCounts.monitor || 0,
+      treat_count: dispCounts.treat || 0,
+      reject_count: (dispCounts.reject || 0) + (dispCounts.reinforceable_reject || 0),
+      priority_reject_count: dispCounts.priority_reject || 0,
+      engineering_review_count: dispCounts.engineering_review || 0,
+      nesc_reject_count: nesc,
+      avg_remaining_strength: avg(rsVals) != null ? Math.round(avg(rsVals) * 10) / 10 : null,
+      avg_pf: avg(pfVals) != null ? Math.round(avg(pfVals) * 10) / 10 : null,
+      data_sources: sources,
+    };
+  }
+  let STATS = computeStats(ALL_ITEMS);
+  function recomputeStats() { STATS = computeStats(ALL_ITEMS); }
+
+  /* ============================================================
+   * 4. Disposition pill helper
+   * ============================================================ */
+  const DISP_LABELS = {
+    pass: 'Pass', monitor: 'Monitor', treat: 'Treat',
+    reject: 'Reject', reinforceable_reject: 'Reinf. Reject',
+    priority_reject: 'Priority Reject', engineering_review: 'Eng. Review',
+  };
+  const DISP_PILL_CLASSES = {
+    pass: 'pill-pass',
+    monitor: 'pill-monitor',
+    treat: 'pill-treat',
+    reject: 'pill-reject',
+    reinforceable_reject: 'pill-reject',
+    priority_reject: 'pill-priority',
+    engineering_review: 'pill-engineering',
+  };
+  function dispositionPill(disp, override) {
+    const eff = override || disp;
+    if (!eff) return '<span class="pill pill-na">N/A</span>';
+    const cls = DISP_PILL_CLASSES[eff] || 'pill-na';
+    const label = DISP_LABELS[eff] || eff.replace(/_/g, ' ');
+    return `<span class="pill ${cls}${override ? ' with-star' : ''}" title="${override ? 'Override applied' : ''}">${label}</span>`;
+  }
+
+  /* ============================================================
+   * 5. Charts (Chart.js, lazy-rendered)
+   * ============================================================ */
+  let chartDisp = null, chartSrc = null;
+  function renderDashboardCharts(s) {
+    if (chartDisp) { chartDisp.destroy(); chartDisp = null; }
+    if (chartSrc) { chartSrc.destroy(); chartSrc = null; }
+    const dCtx = document.getElementById('c-disp');
+    const sCtx = document.getElementById('c-src');
+    if (!dCtx || !sCtx) return;
+
+    const dispData = [
+      { label: 'Pass',         value: s.pass_count,                                       color: '#22c55e' },
+      { label: 'Monitor',      value: s.monitor_count,                                    color: '#fcd34d' },
+      { label: 'Treat',        value: s.treat_count,                                      color: '#f59e0b' },
+      { label: 'Reject',       value: s.reject_count + s.priority_reject_count,           color: '#f87171' },
+      { label: 'Eng. Review',  value: s.engineering_review_count,                         color: '#3b82f6' },
+    ].filter(d => d.value > 0);
+
+    chartDisp = new Chart(dCtx, {
+      type: 'doughnut',
+      data: {
+        labels: dispData.map(d => d.label),
+        datasets: [{
+          data: dispData.map(d => d.value),
+          backgroundColor: dispData.map(d => d.color),
+          borderColor: '#22252b',
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '62%',
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#8b8f9a', font: { size: 11, family: "'DM Sans'" }, padding: 12, boxWidth: 10, boxHeight: 10 } },
+          tooltip: {
+            backgroundColor: '#22252b', titleColor: '#f0f1f3', bodyColor: '#f0f1f3',
+            borderColor: '#2d3038', borderWidth: 1, padding: 10, displayColors: false,
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.parsed; const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                return ctx.label + ': ' + v.toLocaleString() + '  (' + (v / total * 100).toFixed(1) + '%)';
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const sources = Object.entries(s.data_sources);
+    chartSrc = new Chart(sCtx, {
+      type: 'bar',
+      data: {
+        labels: sources.map(([k]) => k),
+        datasets: [{
+          label: 'Inspections',
+          data: sources.map(([, v]) => v),
+          backgroundColor: sources.map(([k]) => k === 'DETEC' ? '#3b82f6' : '#a78bfa'),
+          borderRadius: 6,
+          barThickness: 28,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: { backgroundColor: '#22252b', titleColor: '#f0f1f3', bodyColor: '#f0f1f3', borderColor: '#2d3038', borderWidth: 1, padding: 10, displayColors: false },
+        },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b8f9a', font: { family: "'DM Mono'" } }, beginAtZero: true },
+          y: { grid: { display: false }, ticks: { color: '#f0f1f3', font: { weight: 600, family: "'DM Sans'" } } },
+        },
+      },
+    });
+  }
+
+  /* ============================================================
+   * 6. Dashboard page
+   * ============================================================ */
+  function renderDashboard() {
+    const s = STATS;
+    const fmt = (n) => Number(n).toLocaleString();
+
+    const statCards = [
+      { label: 'Total Poles',     value: s.total_poles,                                hash: '#/inspections',                                                              sub: 'View all' },
+      { label: 'Pending Review',  value: s.pending_review,                             hash: '#/inspections?status=submitted',                                             sub: 'Awaiting triage', color: 'var(--amber)' },
+      { label: 'Pass',            value: s.pass_count,                                 hash: '#/inspections?disposition=pass',                                             sub: 'Clean inspections', color: 'var(--green)' },
+      { label: 'Monitor',         value: s.monitor_count,                              hash: '#/inspections?disposition=monitor',                                          sub: 'Watch list', color: 'var(--yellow)' },
+      { label: 'Treat',           value: s.treat_count,                                hash: '#/inspections?disposition=treat',                                            sub: 'Fumigant + paste', color: 'var(--orange)' },
+      { label: 'Reject (all)',    value: s.reject_count + s.priority_reject_count,     hash: '#/inspections?disposition=reject%2Creinforceable_reject%2Cpriority_reject', sub: 'Replace required', color: 'var(--rose)' },
+      { label: 'Eng. Review',     value: s.engineering_review_count,                   hash: '#/inspections?disposition=engineering_review',                               sub: 'Routed to office', color: 'var(--blue)' },
+      { label: 'NESC Failures',   value: s.nesc_reject_count,                          hash: '#/inspections?nesc_reject=true',                                             sub: 'Safety priority', color: 'var(--red)' },
+    ];
+
+    const statHtml = statCards.map(c => `
+      <a href="${c.hash}" class="stat-tile">
+        <div class="label">${c.label}</div>
+        <div class="num"${c.color ? ` style="color:${c.color}"` : ''}>${fmt(c.value)}</div>
+        <div class="sub">${c.sub}</div>
+      </a>
+    `).join('');
+
+    const recent = ALL_ITEMS.slice(0, 8);
+
+    document.getElementById('main').innerHTML = `
+      <div class="ribbon">
+        <strong>Sample data &mdash; internal review.</strong>
+        Top-bar nav and the eight stat tiles below are live: clicking one navigates to the Inspections tab with the matching filter applied. No backend required.
+      </div>
+
+      <div class="page-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p class="subtitle">REI Pole Inspection Platform &mdash; ${fmt(s.total_inspections)} inspections across ${Object.keys(s.data_sources).length} data sources</p>
+        </div>
+        <button class="btn btn-primary" onclick="openExportModal('all')" title="Open the export dialog (CSV / XLSX / KML / KMZ / GeoJSON / PDF)">&#11015; Export</button>
+      </div>
+
+      <div class="stat-grid">${statHtml}</div>
+
+      <div class="two">
+        <div class="card">
+          <div class="card-title">Disposition Breakdown</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-disp"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Inspections by Data Source</div>
+          <div class="chart-wrap" style="height:240px"><canvas id="c-src"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Key Metrics</div>
+        <div class="key-metrics">
+          <div class="metric-tile green"><div class="v">${s.avg_remaining_strength != null ? s.avg_remaining_strength.toFixed(1) + '%' : '\u2014'}</div><div class="l">Avg Remaining Strength</div></div>
+          <div class="metric-tile amber"><div class="v">${s.avg_pf != null ? s.avg_pf.toFixed(1) : '\u2014'}</div><div class="l">Avg Percent Failure</div></div>
+          <div class="metric-tile ${s.nesc_reject_count > 0 ? 'red' : 'green'}"><div class="v">${fmt(s.nesc_reject_count)}</div><div class="l">NESC Failures</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <div class="card-title" style="margin:0;">Recent Inspections</div>
+          <a href="#/inspections" class="btn btn-outline btn-sm">View All</a>
+        </div>
+        <div style="overflow-x:auto"><table>
+          <thead>
+            <tr>
+              <th>Pole #</th><th>Source</th><th>Inspector</th><th>Test</th>
+              <th style="text-align:right">RS%</th><th style="text-align:right">PF</th><th style="text-align:right">RLE</th><th>Disposition</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${recent.map(i => `
+              <tr class="row-link" onclick="navigate('/inspections/${i.id}')">
+                <td style="font-weight:600;" class="mono">${i.pole_number}</td>
+                <td><span class="source-tag source-${i.data_source}">${i.data_source}</span></td>
+                <td>${i.inspector_name || '\u2014'}</td>
+                <td style="color:var(--text-secondary)">${i.test_type}</td>
+                <td class="num-cell" style="text-align:right">${i.remaining_strength_pct != null ? i.remaining_strength_pct.toFixed(1) + '%' : '\u2014'}</td>
+                <td class="num-cell" style="text-align:right">${i.percent_failure != null ? i.percent_failure.toFixed(1) : '\u2014'}</td>
+                <td class="num-cell" style="text-align:right">${i.relative_life_expectancy != null ? i.relative_life_expectancy.toFixed(1) : '\u2014'}</td>
+                <td>${dispositionPill(i.disposition, i.user_override)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table></div>
+      </div>
+    `;
+
+    renderDashboardCharts(s);
+  }
+
+  /* ============================================================
+   * 7. Inspections page
+   * ============================================================ */
+  const ALL_REJECTS_VALUE = 'reject,reinforceable_reject,priority_reject';
+  const FILTER_LABELS = {
+    disposition: {
+      pass: 'Pass', monitor: 'Monitor', treat: 'Treat',
+      reject: 'Reject', reinforceable_reject: 'Reinforceable Reject',
+      priority_reject: 'Priority Reject', engineering_review: 'Engineering Review',
+      [ALL_REJECTS_VALUE]: 'All Rejects',
+    },
+    status: { submitted: 'Pending Review', approved: 'Approved' },
+    source: { DETEC: 'DETEC', LEC: 'LEC' },
+    nesc_reject: { 'true': 'NESC Rejects only' },
+  };
+  const PAGE_SIZE = 25;
+
+  function applyFilters(items, f) {
+    return items.filter(i => {
+      if (f.disposition) {
+        const allowed = f.disposition.split(',');
+        const eff = i.user_override || i.disposition;
+        if (!allowed.includes(eff)) return false;
+      }
+      if (f.source && i.data_source !== f.source) return false;
+      if (f.status && i.review_status !== f.status) return false;
+      if (f.nesc_reject === 'true' && !i.nesc_reject) return false;
+      if (f.search) {
+        const needle = f.search.toLowerCase();
+        if (!String(i.pole_number).toLowerCase().includes(needle)) return false;
+      }
+      return true;
+    });
+  }
+  function readFilters(query) {
+    return {
+      disposition: query.disposition || '',
+      source:      query.source || '',
+      search:      query.search || '',
+      status:      query.status || '',
+      nesc_reject: query.nesc_reject === 'true' ? 'true' : '',
+    };
+  }
+  function setFilter(key, value) {
+    const { query } = parseHash();
+    const next = { ...query };
+    if (value) next[key] = value; else delete next[key];
+    delete next.page;
+    navigate('/inspections', next);
+  }
+  function clearAll() { navigate('/inspections', {}); }
+  function gotoPage(p) {
+    const { query } = parseHash();
+    navigate('/inspections', { ...query, page: String(p) });
+  }
+
+  function renderInspections() {
+    const { query } = parseHash();
+    const filters = readFilters(query);
+    const filtered = applyFilters(ALL_ITEMS, filters);
+    const page = Math.max(1, parseInt(query.page || '1', 10) || 1);
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const safePage = Math.min(page, totalPages);
+    const start = (safePage - 1) * PAGE_SIZE;
+    const rows = filtered.slice(start, start + PAGE_SIZE);
+
+    const chips = [];
+    if (filters.disposition) chips.push({ key: 'disposition', label: FILTER_LABELS.disposition[filters.disposition] || filters.disposition });
+    if (filters.status)      chips.push({ key: 'status',      label: FILTER_LABELS.status[filters.status] || filters.status });
+    if (filters.source)      chips.push({ key: 'source',      label: 'Source: ' + (FILTER_LABELS.source[filters.source] || filters.source) });
+    if (filters.nesc_reject === 'true') chips.push({ key: 'nesc_reject', label: FILTER_LABELS.nesc_reject['true'] });
+    if (filters.search)      chips.push({ key: 'search',      label: 'Search: \u201C' + filters.search + '\u201D' });
+
+    const dispOpts = [
+      ['', 'All Dispositions'],
+      ['pass', 'Pass'],
+      ['monitor', 'Monitor'],
+      ['treat', 'Treat'],
+      [ALL_REJECTS_VALUE, 'All Rejects (Reject + Reinforceable + Priority)'],
+      ['reject', 'Reject'],
+      ['reinforceable_reject', 'Reinforceable Reject'],
+      ['priority_reject', 'Priority Reject'],
+      ['engineering_review', 'Engineering Review'],
+    ];
+
+    document.getElementById('main').innerHTML = `
+      <div class="ribbon">
+        <strong>Sample data &mdash; internal review.</strong>
+        Filters below (and the chip strip) are wired to the same URL parameters the live UI uses. Change a filter, copy the URL, share it: it deep-links straight to this view.
+      </div>
+
+      <div class="page-header">
+        <div>
+          <h1>Inspections</h1>
+          <p class="subtitle">${filtered.length.toLocaleString()} inspections found</p>
+        </div>
+        <button class="btn btn-primary" onclick="openExportModal('filtered')" title="Open the export dialog (CSV / XLSX / KML / KMZ / GeoJSON / PDF)">&#11015; Export</button>
+      </div>
+
+      ${chips.length ? `
+        <div class="chip-strip">
+          <span class="chip-label">Filtered by:</span>
+          ${chips.map(c => `<span class="chip">${c.label}</span>`).join('')}
+          <button class="btn btn-outline btn-sm" style="margin-left:4px;" onclick="clearAll()">Clear all</button>
+        </div>
+      ` : ''}
+
+      <div class="card" style="margin-bottom:14px;">
+        <div class="filter-row">
+          <input id="f-search" class="f" type="text" placeholder="Search pole number..." value="${filters.search.replace(/"/g, '&quot;')}" style="width:220px;" oninput="onSearchInput(event)">
+          <select id="f-disposition" class="f" onchange="setFilter('disposition', this.value)">
+            ${dispOpts.map(([v, l]) => `<option value="${v}" ${v === filters.disposition ? 'selected' : ''}>${l}</option>`).join('')}
+          </select>
+          <select id="f-source" class="f" onchange="setFilter('source', this.value)">
+            <option value="" ${filters.source === '' ? 'selected' : ''}>All Sources</option>
+            <option value="DETEC" ${filters.source === 'DETEC' ? 'selected' : ''}>DETEC</option>
+            <option value="LEC"   ${filters.source === 'LEC'   ? 'selected' : ''}>LEC</option>
+          </select>
+          <select id="f-status" class="f" onchange="setFilter('status', this.value)">
+            <option value="" ${filters.status === '' ? 'selected' : ''}>All Status</option>
+            <option value="submitted" ${filters.status === 'submitted' ? 'selected' : ''}>Pending</option>
+            <option value="approved"  ${filters.status === 'approved'  ? 'selected' : ''}>Approved</option>
+          </select>
+          <label class="nesc-checkbox-wrap">
+            <input type="checkbox" ${filters.nesc_reject === 'true' ? 'checked' : ''} onchange="setFilter('nesc_reject', this.checked ? 'true' : '')">
+            NESC Rejects only
+          </label>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div style="overflow-x:auto"><table>
+          <thead>
+            <tr>
+              <th style="padding-left:18px;">Pole #</th><th>Source</th><th>Date</th><th>Inspector</th><th>Test</th>
+              <th style="text-align:right">Orig Circ</th><th style="text-align:right">Eff Circ</th><th style="text-align:right">Shell</th>
+              <th style="text-align:right">RS%</th><th style="text-align:right">PF</th><th style="text-align:right">RLE</th>
+              <th>Disposition</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.length === 0 ? `
+              <tr><td colspan="13" style="text-align:center; color:var(--text-muted); padding:48px;">No inspections match the current filters.</td></tr>
+            ` : rows.map(i => {
+              const rs = i.remaining_strength_pct;
+              const pf = i.percent_failure;
+              const rsColor = (rs != null && rs < 50) ? 'var(--rose)' : (rs != null && rs < 67) ? 'var(--amber)' : '';
+              const pfColor = (pf != null && pf >= 60) ? 'var(--rose)' : (pf != null && pf >= 33) ? 'var(--amber)' : '';
+              return `
+                <tr class="row-link" onclick="navigate('/inspections/${i.id}')">
+                  <td style="font-weight:600; padding-left:18px;" class="mono">${i.pole_number}</td>
+                  <td><span class="source-tag source-${i.data_source}">${i.data_source}</span></td>
+                  <td class="mono" style="font-size:12px; color:var(--text-secondary);">${i.inspection_date || '\u2014'}</td>
+                  <td>${i.inspector_name || '\u2014'}</td>
+                  <td style="color:var(--text-secondary)">${i.test_type}</td>
+                  <td class="num-cell" style="text-align:right">${i.original_circ != null ? i.original_circ.toFixed(1) : '\u2014'}</td>
+                  <td class="num-cell" style="text-align:right">${i.effective_circ != null ? i.effective_circ.toFixed(1) : '\u2014'}</td>
+                  <td class="num-cell" style="text-align:right">${i.shell_thickness != null ? i.shell_thickness.toFixed(2) : '\u2014'}</td>
+                  <td class="num-cell" style="text-align:right; font-weight:600; color:${rsColor};">${rs != null ? rs.toFixed(1) + '%' : '\u2014'}</td>
+                  <td class="num-cell" style="text-align:right; font-weight:600; color:${pfColor};">${pf != null ? pf.toFixed(1) : '\u2014'}</td>
+                  <td class="num-cell" style="text-align:right">${i.relative_life_expectancy != null ? i.relative_life_expectancy.toFixed(1) : '\u2014'}</td>
+                  <td>${dispositionPill(i.disposition, i.user_override)}</td>
+                  <td><span class="pill ${i.review_status === 'approved' ? 'pill-approved' : 'pill-pending'}">${i.review_status === 'approved' ? 'Approved' : 'Pending'}</span></td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="pager-wrap">
+        <span class="pager-text">Page ${safePage} of ${totalPages} &middot; ${filtered.length.toLocaleString()} total</span>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline btn-sm" ${safePage <= 1 ? 'disabled' : ''} onclick="gotoPage(${safePage - 1})">&larr; Previous</button>
+          <button class="btn btn-outline btn-sm" ${safePage >= totalPages ? 'disabled' : ''} onclick="gotoPage(${safePage + 1})">Next &rarr;</button>
+        </div>
+      </div>
+    `;
+
+    if (window.__lastSearchFocused) {
+      const el = document.getElementById('f-search');
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+      window.__lastSearchFocused = false;
+    }
+  }
+
+  let searchTimer = null;
+  function onSearchInput(ev) {
+    const v = ev.target.value;
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      window.__lastSearchFocused = true;
+      setFilter('search', v);
+    }, 220);
+  }
+
+  window.setFilter = setFilter;
+  window.clearAll = clearAll;
+  window.gotoPage = gotoPage;
+  window.navigate = navigate;
+  window.onSearchInput = onSearchInput;
+
+  /* ============================================================
+   * 8. Pole-detail / Map / Reports placeholder pages
+   * ============================================================ */
+  function renderPoleDetail(id) {
+    const item = ALL_ITEMS.find(i => String(i.id) === String(id));
+    document.getElementById('main').innerHTML = `
+      <div class="ribbon">
+        <strong>Sample data &mdash; internal review.</strong>
+        The full pole-detail view (cross-section diagram, photos, audit history, override controls) requires the live backend and is not bundled into this static snapshot.
+      </div>
+      <div class="page-header">
+        <div>
+          <h1>${item ? item.pole_number : 'Inspection'} <span style="color:var(--text-muted); font-weight:400;">&mdash; Detail</span></h1>
+          <p class="subtitle">${item ? `${item.data_source} \u00B7 ${item.inspection_date} \u00B7 Inspector ${item.inspector_name}` : 'Unknown inspection'}</p>
+        </div>
+        <a href="#/inspections" class="btn btn-outline">&larr; Back to queue</a>
+      </div>
+      ${item ? `
+        <div class="card">
+          <div class="card-title">Measurement summary</div>
+          <table>
+            <thead><tr><th>Field</th><th style="text-align:right">Value</th></tr></thead>
+            <tbody>
+              <tr><td>Test type</td><td style="text-align:right">${item.test_type}</td></tr>
+              <tr><td>Original circumference</td><td class="num-cell" style="text-align:right">${item.original_circ != null ? item.original_circ.toFixed(2) + ' in' : '\u2014'}</td></tr>
+              <tr><td>Effective circumference</td><td class="num-cell" style="text-align:right">${item.effective_circ != null ? item.effective_circ.toFixed(2) + ' in' : '\u2014'}</td></tr>
+              <tr><td>Shell thickness</td><td class="num-cell" style="text-align:right">${item.shell_thickness != null ? item.shell_thickness.toFixed(2) + ' in' : '\u2014'}</td></tr>
+              <tr><td>Combined void diameter</td><td class="num-cell" style="text-align:right">${item.void_diameter != null ? item.void_diameter.toFixed(2) + ' in' : '\u2014'}</td></tr>
+              <tr><td>Remaining strength</td><td class="num-cell" style="text-align:right; font-weight:600">${item.remaining_strength_pct != null ? item.remaining_strength_pct.toFixed(1) + '%' : '\u2014'}</td></tr>
+              <tr><td>Percent failure</td><td class="num-cell" style="text-align:right">${item.percent_failure != null ? item.percent_failure.toFixed(1) : '\u2014'}</td></tr>
+              <tr><td>Relative life expectancy</td><td class="num-cell" style="text-align:right">${item.relative_life_expectancy != null ? item.relative_life_expectancy.toFixed(1) + ' yr' : '\u2014'}</td></tr>
+              <tr><td>Disposition</td><td style="text-align:right">${dispositionPill(item.disposition, item.user_override)}</td></tr>
+              <tr><td>Review status</td><td style="text-align:right"><span class="pill ${item.review_status === 'approved' ? 'pill-approved' : 'pill-pending'}">${item.review_status === 'approved' ? 'Approved' : 'Pending'}</span></td></tr>
+              <tr><td>NESC reject</td><td style="text-align:right">${item.nesc_reject ? '<span class="pill pill-priority">Yes</span>' : '<span class="pill pill-na">No</span>'}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      ` : ''}
+      ${item ? `
+        <div class="card">
+          <div class="card-title">Groundline cross-section</div>
+          <div style="background:#f5f6f8;border-radius:10px;padding:18px;color:#222;">
+            ${renderCrossSectionSvg(item)}
+          </div>
+        </div>
+      ` : ''}
+      <div class="placeholder">
+        <h2>Photos &middot; audit chain</h2>
+        <p>Per-inspection photos and the SHA-256 audit chain require the live backend. Open <code>/inspections/${id}</code> in the live web frontend to see them.</p>
+      </div>
+    `;
+  }
+
+  /* ------------------------------------------------------------
+   * Map page \u2014 real interactive Leaflet map with color-coded
+   * circle markers per disposition, popup w/ link to pole detail,
+   * disposition filter chips, legend. Leaflet is loaded lazily on
+   * first visit so the rest of the dashboard stays light.
+   * Tiles: CartoDB Dark Matter (free, dark theme matches the
+   * dashboard). Falls back gracefully if offline.
+   * ------------------------------------------------------------ */
+  const MAP_DISP_COLORS = {
+    pass: '#22c55e',
+    monitor: '#fcd34d',
+    treat: '#f59e0b',
+    reject: '#f87171',
+    reinforceable_reject: '#fb7185',
+    priority_reject: '#C41230',
+    engineering_review: '#3b82f6',
+  };
+  let leafletMap = null;
+  let leafletMarkers = null;
+  let mapState = { filter: 'all' };
+
+  function renderMap() {
+    destroyReportCharts();
+    if (leafletMap) { try { leafletMap.remove(); } catch (_) {} leafletMap = null; leafletMarkers = null; }
+
+    const withCoords = ALL_ITEMS.filter(p => p.lat != null && p.lng != null);
+    const noCoords = ALL_ITEMS.length - withCoords.length;
+
+    // Bucket counts by effective disposition
+    const counts = { all: withCoords.length };
+    for (const p of withCoords) {
+      const eff = p.user_override || p.disposition || 'unknown';
+      counts[eff] = (counts[eff] || 0) + 1;
+    }
+
+    const filterChips = ['all', 'pass', 'monitor', 'treat', 'reject', 'reinforceable_reject', 'priority_reject', 'engineering_review']
+      .map(key => {
+        const isOn = mapState.filter === key;
+        const color = key === 'all' ? null : MAP_DISP_COLORS[key];
+        const label = key === 'all' ? 'All' : (DISP_LABELS[key] || key.replace(/_/g, ' '));
+        const c = counts[key] || 0;
+        const style = isOn && color
+          ? `background:${color}1a; border-color:${color}; color:${color};`
+          : '';
+        return `<button class="btn btn-sm ${isOn ? 'btn-primary' : 'btn-outline'}"
+          style="${style}"
+          onclick="setMapFilter('${key}')">${label} (${c.toLocaleString()})</button>`;
+      }).join('');
+
+    const legend = Object.entries(MAP_DISP_COLORS).map(([k, c]) =>
+      `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);">
+        <span style="width:10px;height:10px;border-radius:50%;background:${c};border:1.5px solid #fff;"></span>
+        ${DISP_LABELS[k] || k.replace(/_/g, ' ')}
+      </span>`).join('');
+
+    document.getElementById('main').innerHTML = `
+      <div class="page-header">
+        <div>
+          <h1>Map View</h1>
+          <p class="subtitle">${withCoords.length.toLocaleString()} of ${ALL_ITEMS.length.toLocaleString()} inspections geo-located${noCoords ? ` &mdash; ${noCoords.toLocaleString()} without coordinates` : ''}</p>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">${filterChips}</div>
+      </div>
+      <div id="leaflet-map" style="height: calc(100vh - 320px); min-height: 460px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: var(--dark-2);">
+        <div id="map-loading" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);font-size:13px;">Loading map\u2026</div>
+      </div>
+      <div style="display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin-top:14px;padding:12px;background:var(--dark-2);border:1px solid var(--border);border-radius:10px;">${legend}</div>
+      ${noCoords ? `<div class="placeholder" style="margin-top:14px;padding:14px 18px;">
+        <p style="margin:0;font-size:12.5px;color:var(--text-secondary);">
+          <strong style="color:var(--text-primary);">Note on missing coordinates:</strong>
+          ${noCoords.toLocaleString()} inspections (mostly LEC source records) lack lat/lng in this dataset and are not plotted. They still appear in the Inspections tab and exports. Geographic exports (KML/KMZ/GeoJSON) write a "Skipped N records" note.
+        </p>
+      </div>` : ''}
+    `;
+
+    // Lazy-load Leaflet, then build the map.
+    Promise.all([
+      loadStylesheet('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'),
+      loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'),
+    ]).then(() => buildLeafletMap(withCoords))
+      .catch(err => {
+        const loadEl = document.getElementById('map-loading');
+        if (loadEl) loadEl.innerHTML =
+          `<div style="text-align:center;color:var(--rose);padding:24px;">
+            <div style="font-weight:600;margin-bottom:6px;">Map could not load</div>
+            <div style="font-size:12px;color:var(--text-secondary);">${err.message || err}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Leaflet tiles need an internet connection. Inspections tab and exports still work.</div>
+          </div>`;
+      });
+  }
+
+  function setMapFilter(key) {
+    mapState.filter = key;
+    renderMap();
+  }
+  window.setMapFilter = setMapFilter;
+
+  function buildLeafletMap(withCoords) {
+    const L = window.L;
+    if (!L) return;
+    const filtered = mapState.filter === 'all'
+      ? withCoords
+      : withCoords.filter(p => (p.user_override || p.disposition) === mapState.filter);
+
+    const mount = document.getElementById('leaflet-map');
+    if (!mount) return;
+    mount.innerHTML = '';
+
+    leafletMap = L.map(mount, { zoomControl: true, attributionControl: true });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19,
+    }).addTo(leafletMap);
+
+    leafletMarkers = L.layerGroup().addTo(leafletMap);
+    const bounds = [];
+    for (const p of filtered) {
+      const eff = p.user_override || p.disposition;
+      const color = MAP_DISP_COLORS[eff] || '#888';
+      const marker = L.circleMarker([p.lat, p.lng], {
+        radius: 7,
+        fillColor: color,
+        color: '#fff',
+        weight: 1.5,
+        fillOpacity: 0.9,
+      });
+      const dispLabel = DISP_LABELS[eff] || (eff || 'N/A').replace(/_/g, ' ');
+      const popup = `
+        <div style="font-family:'DM Sans',sans-serif;min-width:200px;color:#222;">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px;color:#111;">Pole ${p.pole_number}</div>
+          <div style="font-size:11px;color:#666;margin-bottom:8px;">${p.data_source || ''} &middot; ${p.inspection_date || ''}</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px;margin-bottom:8px;">
+            <span style="color:#888;">RS%</span><span style="font-weight:600;">${p.remaining_strength_pct != null ? p.remaining_strength_pct.toFixed(1) + '%' : '\u2014'}</span>
+            <span style="color:#888;">PF</span><span style="font-weight:600;">${p.percent_failure != null ? p.percent_failure.toFixed(1) : '\u2014'}</span>
+            <span style="color:#888;">RLE</span><span style="font-weight:600;">${p.relative_life_expectancy != null ? p.relative_life_expectancy.toFixed(1) + ' yr' : '\u2014'}</span>
+            <span style="color:#888;">NESC</span><span style="font-weight:600;color:${p.nesc_reject ? '#c0392b' : '#27ae60'};">${p.nesc_reject ? 'YES' : 'no'}</span>
+          </div>
+          <div style="padding:5px 10px;background:${color};color:#fff;border-radius:5px;text-align:center;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">
+            ${dispLabel}${p.user_override ? ' *' : ''}
+          </div>
+          <div style="margin-top:8px;text-align:center;">
+            <a href="#/inspections/${p.id}" style="font-size:12px;color:#C41230;text-decoration:underline;">View detail \u2192</a>
+          </div>
+        </div>`;
+      marker.bindPopup(popup);
+      leafletMarkers.addLayer(marker);
+      bounds.push([p.lat, p.lng]);
+    }
+
+    if (bounds.length > 0) {
+      leafletMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    } else {
+      // Default to REI Texas/Oklahoma service-area centroid.
+      leafletMap.setView([32.5, -96.3], 7);
+    }
+    // Force a size invalidation in case the parent had transitioning width.
+    setTimeout(() => leafletMap && leafletMap.invalidateSize(), 50);
+  }
+
+  function loadStylesheet(url) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector('link[data-cdn="' + url + '"]')) return resolve();
+      const l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = url;
+      l.setAttribute('data-cdn', url);
+      l.onload = () => resolve();
+      l.onerror = () => reject(new Error('Failed to load ' + url + ' \u2014 are you offline?'));
+      document.head.appendChild(l);
+    });
+  }
+
+  /* ------------------------------------------------------------
+   * Reports page \u2014 real Chart.js views matching live Reports.jsx:
+   *   1. PF distribution (5 buckets)
+   *   2. Dispositions by data source (stacked bar)
+   *   3. RS% vs PF scatter (bubble size = RLE)
+   *   4. Summary statistics table
+   * Export button opens the same multi-format modal.
+   * ------------------------------------------------------------ */
+  let chartPF = null, chartSrc2 = null, chartScatter = null;
+  function destroyReportCharts() {
+    if (chartPF) { chartPF.destroy(); chartPF = null; }
+    if (chartSrc2) { chartSrc2.destroy(); chartSrc2 = null; }
+    if (chartScatter) { chartScatter.destroy(); chartScatter = null; }
+  }
+
+  function renderReports() {
+    if (leafletMap) { try { leafletMap.remove(); } catch (_) {} leafletMap = null; leafletMarkers = null; }
+    destroyReportCharts();
+
+    const items = ALL_ITEMS;
+    const pfBuckets = [
+      { range: 'PF < 10',  label: 'Very Low',  count: 0, color: '#22c55e' },
+      { range: 'PF 10-29', label: 'Low',       count: 0, color: '#84cc16' },
+      { range: 'PF 30-49', label: 'Moderate',  count: 0, color: '#fcd34d' },
+      { range: 'PF 50-69', label: 'Elevated',  count: 0, color: '#f59e0b' },
+      { range: 'PF 70+',   label: 'High Risk', count: 0, color: '#f87171' },
+    ];
+    const srcBreakdown = {};
+    const scatter = [];
+    for (const i of items) {
+      const pf = i.percent_failure;
+      if (pf != null) {
+        if (pf < 10) pfBuckets[0].count++;
+        else if (pf < 30) pfBuckets[1].count++;
+        else if (pf < 50) pfBuckets[2].count++;
+        else if (pf < 70) pfBuckets[3].count++;
+        else pfBuckets[4].count++;
+      }
+      if (i.remaining_strength_pct != null && pf != null) {
+        scatter.push({
+          x: i.remaining_strength_pct,
+          y: pf,
+          r: Math.max(3, Math.min(14, (i.relative_life_expectancy || 0) / 3 + 3)),
+          pole: i.pole_number,
+          rle: i.relative_life_expectancy,
+          disp: i.user_override || i.disposition,
+        });
+      }
+      const src = i.data_source || 'OTHER';
+      const eff = i.user_override || i.disposition;
+      if (!srcBreakdown[src]) srcBreakdown[src] = { pass: 0, monitor: 0, treat: 0, reject: 0, eng: 0 };
+      const b = srcBreakdown[src];
+      if (eff === 'pass') b.pass++;
+      else if (eff === 'monitor') b.monitor++;
+      else if (eff === 'treat') b.treat++;
+      else if (eff === 'reject' || eff === 'reinforceable_reject' || eff === 'priority_reject') b.reject++;
+      else if (eff === 'engineering_review') b.eng++;
+    }
+
+    const stats = STATS;
+    const passRate = stats.total_inspections ? (stats.pass_count / stats.total_inspections * 100) : 0;
+    const actionReq = (stats.monitor_count || 0) + (stats.treat_count || 0)
+                    + (stats.reject_count || 0) + (stats.priority_reject_count || 0)
+                    + (stats.engineering_review_count || 0);
+
+    const fmt = (n) => Number(n || 0).toLocaleString();
+    document.getElementById('main').innerHTML = `
+      <div class="page-header">
+        <div>
+          <h1>Reports</h1>
+          <p class="subtitle">Analysis of ${fmt(items.length)} inspections</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline" onclick="window.print()" title="Print or save as PDF via the browser">&#128424; Print</button>
+          <button class="btn btn-primary" onclick="openExportModal('all')" title="Open the export dialog (CSV / XLSX / KML / KMZ / GeoJSON / PDF)">&#11015; Export</button>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:16px; margin-bottom:18px;">
+        <div class="card">
+          <div class="card-title">PF Distribution</div>
+          <div style="height:280px; position:relative;"><canvas id="rep-pf"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Dispositions by Source</div>
+          <div style="height:280px; position:relative;"><canvas id="rep-src"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-title">RS% vs PF \u00B7 bubble size = relative life expectancy</div>
+        <div style="height:380px; position:relative;"><canvas id="rep-scatter"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Summary Statistics</div>
+        <table style="width:100%;">
+          <thead>
+            <tr><th style="text-align:left;">Metric</th><th style="text-align:right;">Value</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Total Poles</td><td class="num-cell" style="text-align:right;">${fmt(stats.total_poles)}</td></tr>
+            <tr><td>Total Inspections</td><td class="num-cell" style="text-align:right;">${fmt(stats.total_inspections)}</td></tr>
+            <tr><td>Average Remaining Strength</td><td class="num-cell" style="text-align:right;">${stats.avg_remaining_strength != null ? stats.avg_remaining_strength.toFixed(1) + '%' : '\u2014'}</td></tr>
+            <tr><td>Average Percent Failure</td><td class="num-cell" style="text-align:right;">${stats.avg_pf != null ? stats.avg_pf.toFixed(1) : '\u2014'}</td></tr>
+            <tr><td>NESC Rejects (RS &lt; 67%)</td><td class="num-cell" style="text-align:right;color:${stats.nesc_reject_count > 0 ? 'var(--rose)' : 'var(--green)'};font-weight:600;">${fmt(stats.nesc_reject_count)}</td></tr>
+            <tr><td>Pass Rate</td><td class="num-cell" style="text-align:right;color:var(--green);font-weight:600;">${passRate.toFixed(1)}%</td></tr>
+            <tr><td>Action Required (Monitor + Treat + Reject + Eng Review)</td><td class="num-cell" style="text-align:right;font-weight:600;">${fmt(actionReq)}</td></tr>
+            <tr><td>Pending Review</td><td class="num-cell" style="text-align:right;color:var(--amber);font-weight:600;">${fmt(stats.pending_review)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    if (typeof Chart === 'undefined') return;
+    const baseTextColor = '#8b8f9a';
+    const gridColor = 'rgba(139,143,154,0.12)';
+    const tooltipBase = {
+      backgroundColor: '#22252b', titleColor: '#f0f1f3', bodyColor: '#f0f1f3',
+      borderColor: '#2d3038', borderWidth: 1, padding: 10,
+    };
+
+    chartPF = new Chart(document.getElementById('rep-pf'), {
+      type: 'bar',
+      data: {
+        labels: pfBuckets.map(b => b.range),
+        datasets: [{
+          label: 'Inspections',
+          data: pfBuckets.map(b => b.count),
+          backgroundColor: pfBuckets.map(b => b.color),
+          borderRadius: 4, borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { ...tooltipBase, displayColors: false,
+            callbacks: { label: (ctx) => ctx.parsed.y.toLocaleString() + ' inspections (' + pfBuckets[ctx.dataIndex].label + ')' } },
+        },
+        scales: {
+          x: { ticks: { color: baseTextColor, font: { family: "'DM Mono'", size: 11 } }, grid: { display: false } },
+          y: { ticks: { color: baseTextColor, font: { family: "'DM Mono'", size: 11 } }, grid: { color: gridColor }, beginAtZero: true },
+        },
+      },
+    });
+
+    const srcLabels = Object.keys(srcBreakdown);
+    chartSrc2 = new Chart(document.getElementById('rep-src'), {
+      type: 'bar',
+      data: {
+        labels: srcLabels,
+        datasets: [
+          { label: 'Pass',       data: srcLabels.map(s => srcBreakdown[s].pass),    backgroundColor: '#22c55e' },
+          { label: 'Monitor',    data: srcLabels.map(s => srcBreakdown[s].monitor), backgroundColor: '#fcd34d' },
+          { label: 'Treat',      data: srcLabels.map(s => srcBreakdown[s].treat),   backgroundColor: '#f59e0b' },
+          { label: 'Reject',     data: srcLabels.map(s => srcBreakdown[s].reject),  backgroundColor: '#f87171' },
+          { label: 'Eng Review', data: srcLabels.map(s => srcBreakdown[s].eng),     backgroundColor: '#3b82f6' },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: baseTextColor, font: { family: "'DM Sans'", size: 11 }, boxWidth: 10, boxHeight: 10, padding: 12 } },
+          tooltip: tooltipBase,
+        },
+        scales: {
+          x: { stacked: true, ticks: { color: baseTextColor, font: { family: "'DM Mono'", size: 12, weight: '600' } }, grid: { display: false } },
+          y: { stacked: true, ticks: { color: baseTextColor, font: { family: "'DM Mono'", size: 11 } }, grid: { color: gridColor }, beginAtZero: true },
+        },
+      },
+    });
+
+    chartScatter = new Chart(document.getElementById('rep-scatter'), {
+      type: 'bubble',
+      data: {
+        datasets: [{
+          label: 'Inspections',
+          data: scatter,
+          backgroundColor: scatter.map(d => (MAP_DISP_COLORS[d.disp] || '#8b8f9a') + 'b3'),
+          borderColor: scatter.map(d => MAP_DISP_COLORS[d.disp] || '#8b8f9a'),
+          borderWidth: 1,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { ...tooltipBase, displayColors: false,
+            callbacks: {
+              title: (items) => 'Pole ' + (items[0].raw.pole || ''),
+              label: (ctx) => {
+                const d = ctx.raw;
+                return [
+                  'RS: ' + d.x.toFixed(1) + '%',
+                  'PF: ' + d.y.toFixed(1),
+                  'RLE: ' + (d.rle != null ? d.rle.toFixed(1) + ' yr' : '\u2014'),
+                  'Disposition: ' + (DISP_LABELS[d.disp] || d.disp || 'n/a'),
+                ];
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Remaining Strength %', color: baseTextColor, font: { family: "'DM Sans'", size: 12 } },
+            min: 0, max: 110,
+            ticks: { color: baseTextColor, font: { family: "'DM Mono'", size: 11 } },
+            grid: { color: gridColor },
+          },
+          y: {
+            title: { display: true, text: 'Percent Failure', color: baseTextColor, font: { family: "'DM Sans'", size: 12 } },
+            min: 0, max: 105,
+            ticks: { color: baseTextColor, font: { family: "'DM Mono'", size: 11 } },
+            grid: { color: gridColor },
+          },
+        },
+      },
+    });
+  }
+
+  /* ============================================================
+   * 8b. Cross-section diagram (port of frontend CrossSectionDiagram.jsx)
+   *
+   * Faithful 1:1 port of 07_App/frontend/src/components/CrossSectionDiagram.jsx
+   * to vanilla JS so the snapshot's pole-detail page renders the same
+   * concentric-ring view (Original / Effective / Combined Void) plus the
+   * inch-tick ruler, void-edge labels, and area breakdown legend the live
+   * dashboard shows. Kept on a white background to match the live UI; that
+   * also makes it readable on print and inside this dark theme.
+   * ============================================================ */
+  function _toFiniteNumber(v) {
+    if (v == null) return null;
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  function _buildGeometry(item) {
+    const orig = _toFiniteNumber(item.original_circ);
+    if (!(orig != null && orig > 0)) return null;
+    const eff = _toFiniteNumber(item.effective_circ);
+    const voidD = _toFiniteNumber(item.void_diameter);
+    const shell = _toFiniteNumber(item.shell_thickness);
+    const SIZE = 320;
+    const CENTER = SIZE / 2;
+    const origRadius = SIZE * 0.38;
+    const effRatio = eff != null && eff > 0 ? Math.min(1, eff / orig) : 1;
+    const effRadius = origRadius * effRatio;
+    const poleDiamIn = orig / Math.PI;
+    const boreScale = origRadius / (orig / (2 * Math.PI));
+    const voidD_use = voidD != null && voidD > 0 ? voidD : 0;
+    const voidRadIn = voidD_use / 2;
+    const voidRadius = Math.min(origRadius * 0.7, voidRadIn * boreScale);
+    const circLossPct = eff != null && eff > 0 ? (1 - eff / orig) * 100 : 0;
+    const originalDiameterIn = orig / Math.PI;
+    const effectiveDiameterIn = (eff != null && eff > 0 ? eff : orig) / Math.PI;
+    const effectiveRadiusIn = effectiveDiameterIn / 2;
+    const originalAreaIn2 = Math.PI * (originalDiameterIn / 2) ** 2;
+    const effectiveAreaIn2Raw = Math.PI * (effectiveDiameterIn / 2) ** 2;
+    const effectiveAreaIn2 = Math.min(originalAreaIn2, Math.max(0, effectiveAreaIn2Raw));
+    const perimeterLossAreaIn2 = Math.max(0, originalAreaIn2 - effectiveAreaIn2);
+    const voidAreaIn2Raw = Math.PI * (voidD_use / 2) ** 2;
+    const shellFloorIn = shell != null && shell > 0 ? shell : null;
+    const minWoodAreaFromShellIn2 = (() => {
+      if (shellFloorIn == null) return 0;
+      const innerRadius = Math.max(0, effectiveRadiusIn - shellFloorIn);
+      const ringArea = Math.PI * (effectiveRadiusIn ** 2 - innerRadius ** 2);
+      return Math.max(0, Math.min(effectiveAreaIn2, ringArea));
+    })();
+    const maxVoidAreaIn2 = Math.max(0, effectiveAreaIn2 - minWoodAreaFromShellIn2);
+    const voidAreaIn2 = Math.min(maxVoidAreaIn2, Math.max(0, voidAreaIn2Raw));
+    const netAreaIn2 = Math.max(0, originalAreaIn2 - perimeterLossAreaIn2 - voidAreaIn2);
+    const perimeterAreaLeftPct = originalAreaIn2 > 0 ? (effectiveAreaIn2 / originalAreaIn2) * 100 : 0;
+    const netAreaLeftPct = originalAreaIn2 > 0 ? (netAreaIn2 / originalAreaIn2) * 100 : 0;
+    const voidLossPct = originalAreaIn2 > 0 ? (voidAreaIn2 / originalAreaIn2) * 100 : 0;
+    return {
+      SIZE, CENTER, origRadius, effRadius, voidRadius, boreScale, poleDiamIn, voidRadIn,
+      circLossPct, originalAreaIn2, perimeterLossAreaIn2, voidAreaIn2, netAreaIn2,
+      perimeterAreaLeftPct, netAreaLeftPct, voidLossPct, minWoodAreaFromShellIn2, shellFloorIn,
+    };
+  }
+  function _legendRow(color, border, html) {
+    return `<div style="display:flex;align-items:flex-start;gap:8px;">
+      <span style="display:inline-block;width:12px;height:12px;margin-top:3px;background:${color};border:1px solid ${border};border-radius:2px;flex-shrink:0;"></span>
+      <span style="flex:1;line-height:1.45;">${html}</span>
+    </div>`;
+  }
+  function renderCrossSectionSvg(item) {
+    const g = _buildGeometry(item);
+    if (!g) return `<div style="font-size:12px;color:#888;padding:8px;">Cross-section unavailable: original circumference is missing.</div>`;
+    const { SIZE, CENTER, origRadius, effRadius, voidRadius, boreScale, poleDiamIn, voidRadIn,
+            circLossPct, originalAreaIn2, perimeterLossAreaIn2, voidAreaIn2, netAreaIn2,
+            perimeterAreaLeftPct, netAreaLeftPct, voidLossPct, minWoodAreaFromShellIn2, shellFloorIn } = g;
+
+    let ticks = '';
+    const numTicks = Math.floor(poleDiamIn);
+    for (let i = 0; i <= numTicks; i++) {
+      const px = CENTER - origRadius + i * boreScale;
+      const py = CENTER - origRadius + i * boreScale;
+      if (px < CENTER - origRadius - 0.5 || px > CENTER + origRadius + 0.5) continue;
+      const isFive = i % 5 === 0;
+      const tickH = isFive ? 6 : 3;
+      const sw = isFive ? 1.2 : 0.7;
+      ticks += `<line x1="${px}" y1="${CENTER - tickH}" x2="${px}" y2="${CENTER + tickH}" stroke="rgba(30,100,200,0.4)" stroke-width="${sw}"/>`;
+      ticks += `<line x1="${CENTER - tickH}" y1="${py}" x2="${CENTER + tickH}" y2="${py}" stroke="rgba(30,100,200,0.4)" stroke-width="${sw}"/>`;
+    }
+
+    let voidEdgeLabels = '';
+    if (voidRadIn > 0.05) {
+      const vLeftX = CENTER - voidRadius;
+      const vRightX = CENTER + voidRadius;
+      const vTopY = CENTER - voidRadius;
+      const vBottomY = CENTER + voidRadius;
+      const voidLeftIn = (poleDiamIn / 2 - voidRadIn).toFixed(1);
+      const voidRightIn = (poleDiamIn / 2 + voidRadIn).toFixed(1);
+      voidEdgeLabels = `
+        <g>
+          <line x1="${vLeftX}" y1="${CENTER - 7}" x2="${vLeftX}" y2="${CENTER + 7}" stroke="rgba(20,80,180,0.7)" stroke-width="1.2"/>
+          <line x1="${vRightX}" y1="${CENTER - 7}" x2="${vRightX}" y2="${CENTER + 7}" stroke="rgba(20,80,180,0.7)" stroke-width="1.2"/>
+          <line x1="${CENTER - 7}" y1="${vTopY}" x2="${CENTER + 7}" y2="${vTopY}" stroke="rgba(20,80,180,0.7)" stroke-width="1.2"/>
+          <line x1="${CENTER - 7}" y1="${vBottomY}" x2="${CENTER + 7}" y2="${vBottomY}" stroke="rgba(20,80,180,0.7)" stroke-width="1.2"/>
+          <text x="${vLeftX}" y="${CENTER + 14}" font-size="8" fill="rgba(20,80,180,0.85)" text-anchor="middle" font-weight="600">${voidLeftIn}"</text>
+          <text x="${vRightX}" y="${CENTER + 14}" font-size="8" fill="rgba(20,80,180,0.85)" text-anchor="middle" font-weight="600">${voidRightIn}"</text>
+          <text x="${CENTER + 11}" y="${vTopY + 3}" font-size="8" fill="rgba(20,80,180,0.85)" text-anchor="start" font-weight="600">${voidLeftIn}"</text>
+          <text x="${CENTER + 11}" y="${vBottomY + 3}" font-size="8" fill="rgba(20,80,180,0.85)" text-anchor="start" font-weight="600">${voidRightIn}"</text>
+        </g>`;
+    }
+
+    const orig = item.original_circ;
+    const eff = item.effective_circ;
+    const voidD = item.void_diameter;
+
+    const legendHtml =
+      _legendRow('#dce8f7', '#3b6fb1', `<strong>Original:</strong> ${orig.toFixed(1)}" circ (${(orig / Math.PI).toFixed(1)}" dia)`) +
+      ((eff != null && eff < orig)
+        ? _legendRow('#fff3e0', '#e8a23a', `<strong>Effective:</strong> ${eff.toFixed(1)}" (${circLossPct.toFixed(0)}% loss)`)
+        : '') +
+      ((voidD != null && voidD > 0)
+        ? _legendRow('#ffebee', '#c0392b', `<strong>Combined Void:</strong> ${voidD.toFixed(1)}" dia`)
+        : '') +
+      _legendRow('#e8f5e9', '#4f8a4f',
+        `<strong>Estimated Remaining Cross-Section: ${netAreaLeftPct.toFixed(1)}%</strong>
+        <div style="font-size:11px;color:#555;">Orig area ${originalAreaIn2.toFixed(2)} \u2212 circ-loss area ${perimeterLossAreaIn2.toFixed(2)} \u2212 void area ${voidAreaIn2.toFixed(2)} = ${netAreaIn2.toFixed(2)} sq in</div>`) +
+      _legendRow('#f1f8e9', '#7a9b3c',
+        `Breakdown: perimeter left ${perimeterAreaLeftPct.toFixed(1)}%, void loss ${voidLossPct.toFixed(1)}%`) +
+      ((minWoodAreaFromShellIn2 > 0 && shellFloorIn != null)
+        ? _legendRow('#e0f2f1', '#3a8a82',
+          `Shell floor applied: min shell ${shellFloorIn.toFixed(2)}" keeps at least ${minWoodAreaFromShellIn2.toFixed(2)} sq in`)
+        : '');
+
+    return `
+      <div>
+        <div style="font-size:11px;color:#666;margin-bottom:10px;line-height:1.4;">
+          Estimated visualization for decision support. Not an exact structural map of internal decay. Directional decay-bore data is captured in the field app and surfaces in the mobile cross-section view.
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:flex-start;">
+          <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#333;">
+            ${legendHtml}
+          </div>
+          <svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="background:#fff;border-radius:8px;border:1px solid #eee;flex-shrink:0;">
+            <circle cx="${CENTER}" cy="${CENTER}" r="${origRadius}" fill="#dce8f7" stroke="#3b6fb1" stroke-width="2.5"/>
+            ${effRadius < origRadius ? `<circle cx="${CENTER}" cy="${CENTER}" r="${effRadius}" fill="#fff3e0" stroke="#e8a23a" stroke-width="1.5" stroke-dasharray="4 3"/>` : ''}
+            ${voidRadius > 0 ? `<circle cx="${CENTER}" cy="${CENTER}" r="${voidRadius}" fill="#ffebee" stroke="#c0392b" stroke-width="1.5"/>` : ''}
+            <line x1="${CENTER - origRadius}" y1="${CENTER}" x2="${CENTER + origRadius}" y2="${CENTER}" stroke="rgba(30,100,200,0.4)" stroke-width="1"/>
+            <line x1="${CENTER}" y1="${CENTER - origRadius}" x2="${CENTER}" y2="${CENTER + origRadius}" stroke="rgba(30,100,200,0.4)" stroke-width="1"/>
+            ${ticks}
+            ${voidEdgeLabels}
+            <text x="${CENTER + origRadius - 2}" y="${CENTER - 8}" font-size="7" fill="rgba(20,80,180,0.85)" text-anchor="end" font-weight="500">${poleDiamIn.toFixed(1)}" dia</text>
+            <text x="${CENTER}" y="14" font-size="9" fill="#3b6fb1" text-anchor="middle" font-weight="700">N</text>
+            <text x="${CENTER}" y="${SIZE - 6}" font-size="9" fill="#3b6fb1" text-anchor="middle" font-weight="700">S</text>
+            <text x="6" y="${CENTER + 3}" font-size="9" fill="#3b6fb1" text-anchor="start" font-weight="700">W</text>
+            <text x="${SIZE - 6}" y="${CENTER + 3}" font-size="9" fill="#3b6fb1" text-anchor="end" font-weight="700">E</text>
+            ${voidD != null && voidD > 0 ? `
+              <g>
+                <text x="${CENTER}" y="${CENTER - 2}" font-size="9" fill="#c0392b" text-anchor="middle" font-weight="700">Combined Void</text>
+                <text x="${CENTER}" y="${CENTER + 10}" font-size="10" fill="#c0392b" text-anchor="middle" font-weight="600">${voidD.toFixed(1)}"</text>
+              </g>` : ''}
+          </svg>
+        </div>
+      </div>`;
+  }
+
+  /* ============================================================
+   * 8c. Multi-format export module — full port of the live
+   * dashboard's ExportDialog + /api/exports backend.
+   *
+   * Format parity with the live UI:
+   *   CSV / XLSX / KML / KMZ / GeoJSON / PDF
+   * Scope: filtered (current URL filters) or all (full dataset).
+   * Field picker: 5 groups (Pole Info / Inspection / Measurements /
+   * Assessment / Disposition) with select-all/none + per-group
+   * indeterminate checkbox. Lat/Lng auto-forced for geo formats.
+   *
+   * Heavy libraries (SheetJS, JSZip, jsPDF) are loaded lazily on
+   * first use so initial page load stays light. They come from
+   * cdnjs / sheet.js CDNs; the page degrades gracefully if the
+   * recipient is offline (CSV / KML / GeoJSON still work — they
+   * are pure JS and need no external deps).
+   * ============================================================ */
+  const FIELD_DEFS = [
+    // Pole Info
+    { key: 'pole_number',  label: 'Pole #',                     group: 'Pole Info',    type: 'string' },
+    { key: 'data_source',  label: 'Data Source',                group: 'Pole Info',    type: 'string' },
+    { key: 'lat',          label: 'Latitude',                   group: 'Pole Info',    type: 'number' },
+    { key: 'lng',          label: 'Longitude',                  group: 'Pole Info',    type: 'number' },
+    { key: 'height_ft',    label: 'Height (ft)',                group: 'Pole Info',    type: 'number' },
+    { key: 'pole_class',   label: 'Class',                      group: 'Pole Info',    type: 'string' },
+    { key: 'wood_species', label: 'Species',                    group: 'Pole Info',    type: 'string' },
+    { key: 'install_year', label: 'Install Year',               group: 'Pole Info',    type: 'number' },
+    // Inspection
+    { key: 'inspection_date',      label: 'Inspection Date',     group: 'Inspection',   type: 'date'   },
+    { key: 'inspector_name',       label: 'Inspector',           group: 'Inspection',   type: 'string' },
+    { key: 'test_type',            label: 'Test Type',           group: 'Inspection',   type: 'string' },
+    { key: 'review_status',        label: 'Review Status',       group: 'Inspection',   type: 'string' },
+    { key: 'condition_comments',   label: 'Condition Comments',  group: 'Inspection',   type: 'string' },
+    { key: 'maintenance_comments', label: 'Maintenance Comments', group: 'Inspection',  type: 'string' },
+    { key: 'location_comments',    label: 'Location Comments',   group: 'Inspection',   type: 'string' },
+    { key: 'additional_remarks',   label: 'Additional Remarks',  group: 'Inspection',   type: 'string' },
+    // Measurements
+    { key: 'original_circ',   label: 'Original Circumference (in)',  group: 'Measurements', type: 'number' },
+    { key: 'effective_circ',  label: 'Effective Circumference (in)', group: 'Measurements', type: 'number' },
+    { key: 'inch_loss',       label: 'Inch Loss',                    group: 'Measurements', type: 'number' },
+    { key: 'shell_thickness', label: 'Groundline Avg Shell (in)',    group: 'Measurements', type: 'number' },
+    { key: 'void_diameter',   label: 'Void Diameter (in)',           group: 'Measurements', type: 'number' },
+    // Assessment
+    { key: 'formula_version',            label: 'Formula Version',          group: 'Assessment', type: 'string' },
+    { key: 'calculation_status',         label: 'Calculation Status',       group: 'Assessment', type: 'string' },
+    { key: 'remaining_strength_pct',     label: 'Remaining Strength (%)',   group: 'Assessment', type: 'number' },
+    { key: 'percent_failure',            label: 'Percent Failure',          group: 'Assessment', type: 'number' },
+    { key: 'relative_life_expectancy',   label: 'Relative Life Expectancy', group: 'Assessment', type: 'number' },
+    { key: 'void_adjusted_strength_pct', label: 'Void-Adjusted Strength (%)', group: 'Assessment', type: 'number' },
+    { key: 'shell_to_radius_ratio',      label: 'Shell-to-Radius Ratio',    group: 'Assessment', type: 'number' },
+    { key: 'nesc_reject',                label: 'NESC Reject',              group: 'Assessment', type: 'string' },
+    { key: 'visual_only',                label: 'Visual Only Confidence',   group: 'Assessment', type: 'string' },
+    { key: 'class_adequacy_warning',     label: 'Class Adequacy Warning',   group: 'Assessment', type: 'string' },
+    { key: 'class_adequacy_note',        label: 'Class Adequacy Note',      group: 'Assessment', type: 'string' },
+    { key: 'priority_pole',              label: 'Priority Pole',            group: 'Assessment', type: 'string' },
+    { key: 'reinforceable',              label: 'Reinforceable',            group: 'Assessment', type: 'string' },
+    { key: 'reinforceable_reason',       label: 'Reinforceable Reason',     group: 'Assessment', type: 'string' },
+    { key: 'pf_confidence',              label: 'PF Confidence',            group: 'Assessment', type: 'string' },
+    { key: 'data_quality_flags',         label: 'Data Quality Flags',       group: 'Assessment', type: 'string' },
+    // Disposition
+    { key: 'disposition',           label: 'Suggested Disposition', group: 'Disposition', type: 'string' },
+    { key: 'user_override',         label: 'User Override',         group: 'Disposition', type: 'string' },
+    { key: 'effective_disposition', label: 'Effective Disposition', group: 'Disposition', type: 'string' },
+    { key: 'reason',                label: 'Disposition Reason',    group: 'Disposition', type: 'string' },
+    { key: 'tag_instruction',       label: 'Tag Instruction',       group: 'Disposition', type: 'string' },
+    { key: 'override_reason',       label: 'Override Reason',       group: 'Disposition', type: 'string' },
+    { key: 'override_by',           label: 'Override By',           group: 'Disposition', type: 'string' },
+    { key: 'reviewed_by',           label: 'Reviewed By',           group: 'Disposition', type: 'string' },
+    { key: 'reviewed_at',           label: 'Reviewed At',           group: 'Disposition', type: 'date'   },
+  ];
+  const FIELD_BY_KEY = Object.fromEntries(FIELD_DEFS.map(f => [f.key, f]));
+  const DEFAULT_SELECTED_KEYS = FIELD_DEFS.map(f => f.key);
+  const GEO_REQUIRED_KEYS = ['lat', 'lng'];
+  const GEO_FORMATS = new Set(['kml', 'kmz', 'geojson']);
+  const FIELD_GROUPS = (() => {
+    const map = new Map();
+    for (const f of FIELD_DEFS) {
+      if (!map.has(f.group)) map.set(f.group, []);
+      map.get(f.group).push(f);
+    }
+    return Array.from(map, ([name, fields]) => ({ name, fields }));
+  })();
+
+  // Disposition palette mirrors backend services/exports.py (DISPOSITION_COLORS).
+  const DISPOSITION_PALETTE = {
+    pass:                 { hex: '27ae60', kml: 'ff60ae27', label: 'Pass' },
+    monitor:              { hex: 'f1c40f', kml: 'ff0fc4f1', label: 'Monitor' },
+    treat:                { hex: 'e67e22', kml: 'ff227ee6', label: 'Treat' },
+    reject:               { hex: 'c0392b', kml: 'ff2b39c0', label: 'Reject' },
+    reinforceable_reject: { hex: 'd35400', kml: 'ff0054d3', label: 'Reinforceable Reject' },
+    priority_reject:      { hex: '8e1010', kml: 'ff10108e', label: 'Priority Reject' },
+    engineering_review:   { hex: '3498db', kml: 'ffdb9834', label: 'Engineering Review' },
+    _default:             { hex: '888888', kml: 'ff888888', label: 'Other' },
+  };
+
+  const FORMAT_OPTS = [
+    { id: 'csv',     label: 'CSV',           desc: 'Comma-separated values \u2014 opens in Excel, Google Sheets, anything.' },
+    { id: 'xlsx',    label: 'Excel (.xlsx)', desc: 'Formatted spreadsheet with a Metadata sheet.' },
+    { id: 'kml',     label: 'KML',           desc: 'Google Earth / GIS format. Color-coded by disposition.' },
+    { id: 'kmz',     label: 'KMZ',           desc: 'Zipped KML. Same content, smaller file \u2014 best for sharing.' },
+    { id: 'geojson', label: 'GeoJSON',       desc: 'Modern web-map format (ArcGIS Online, Mapbox, Leaflet).' },
+    { id: 'pdf',     label: 'PDF',           desc: 'One-page-per-pole report. Slower but printable.' },
+  ];
+
+  // -------- Modal state ----------
+  const modalState = {
+    open: false,
+    format: 'csv',
+    scope: 'filtered',
+    selected: new Set(DEFAULT_SELECTED_KEYS),
+    downloading: false,
+    error: null,
+    rows: [],
+    filterSummary: '',
+    filteredCount: 0,
+    totalCount: 0,
+  };
+
+  function openExportModal(defaultScope) {
+    const { query } = parseHash();
+    const filters = readFilters(query);
+    const filtered = applyFilters(ALL_ITEMS, filters);
+    modalState.open = true;
+    modalState.scope = defaultScope || 'filtered';
+    modalState.error = null;
+    modalState.downloading = false;
+    modalState.rows = ALL_ITEMS;
+    modalState.filteredRows = filtered;
+    modalState.filteredCount = filtered.length;
+    modalState.totalCount = ALL_ITEMS.length;
+    modalState.filterSummary = describeFilters(filters);
+    renderExportModal();
+    document.body.style.overflow = 'hidden';
+  }
+  function closeExportModal() {
+    modalState.open = false;
+    renderExportModal();
+    document.body.style.overflow = '';
+  }
+  function describeFilters(f) {
+    const parts = [];
+    if (f.disposition) parts.push('disposition=' + f.disposition);
+    if (f.status)      parts.push('status=' + f.status);
+    if (f.source)      parts.push('source=' + f.source);
+    if (f.nesc_reject === 'true') parts.push('nesc_reject=true');
+    if (f.search)      parts.push('search="' + f.search + '"');
+    return parts.length ? parts.join(', ') : 'No filters applied \u2014 same as "All".';
+  }
+
+  function setExportFormat(fmt) { modalState.format = fmt; modalState.error = null; renderExportModal(); }
+  function setExportScope(s)    { modalState.scope = s; renderExportModal(); }
+  function toggleField(key) {
+    if (modalState.selected.has(key)) modalState.selected.delete(key);
+    else modalState.selected.add(key);
+    renderExportModal();
+  }
+  function toggleGroup(groupName) {
+    const grp = FIELD_GROUPS.find(g => g.name === groupName);
+    if (!grp) return;
+    const allOn = grp.fields.every(f => modalState.selected.has(f.key));
+    if (allOn) grp.fields.forEach(f => modalState.selected.delete(f.key));
+    else grp.fields.forEach(f => modalState.selected.add(f.key));
+    renderExportModal();
+  }
+  function selectAllFields()  { modalState.selected = new Set(DEFAULT_SELECTED_KEYS); renderExportModal(); }
+  function selectNoneFields() { modalState.selected = new Set(); renderExportModal(); }
+
+  function renderExportModal() {
+    const mount = document.getElementById('export-modal-mount');
+    if (!mount) return;
+    if (!modalState.open) { mount.innerHTML = ''; return; }
+    const s = modalState;
+    const fields = Array.from(s.selected);
+    const exportRows = s.scope === 'all' ? s.rows : s.filteredRows;
+    const exportCount = exportRows.length;
+    const fieldCount = fields.length + (GEO_FORMATS.has(s.format) ? GEO_REQUIRED_KEYS.filter(k => !s.selected.has(k)).length : 0);
+
+    const fmtCardsHtml = FORMAT_OPTS.map(f => `
+      <label class="opt ${s.format === f.id ? 'selected' : ''}" onclick="setExportFormat('${f.id}')">
+        <input type="radio" name="fmt" ${s.format === f.id ? 'checked' : ''} onchange="setExportFormat('${f.id}')">
+        <div>
+          <div class="opt-title">${f.label}</div>
+          <div class="opt-desc">${f.desc}</div>
+        </div>
+      </label>`).join('');
+
+    const scopeCardsHtml = `
+      <label class="opt ${s.scope === 'filtered' ? 'selected' : ''}" onclick="setExportScope('filtered')">
+        <input type="radio" name="scope" ${s.scope === 'filtered' ? 'checked' : ''} onchange="setExportScope('filtered')">
+        <div>
+          <div class="opt-title">Current filters (${s.filteredCount.toLocaleString()})</div>
+          <div class="opt-desc">${s.filterSummary}</div>
+        </div>
+      </label>
+      <label class="opt ${s.scope === 'all' ? 'selected' : ''}" onclick="setExportScope('all')">
+        <input type="radio" name="scope" ${s.scope === 'all' ? 'checked' : ''} onchange="setExportScope('all')">
+        <div>
+          <div class="opt-title">All inspections (${s.totalCount.toLocaleString()})</div>
+          <div class="opt-desc">Ignore filters and export the full dataset.</div>
+        </div>
+      </label>`;
+
+    const groupsHtml = FIELD_GROUPS.map(g => {
+      const total = g.fields.length;
+      const on = g.fields.filter(f => s.selected.has(f.key)).length;
+      const allOn = on === total;
+      const someOn = on > 0 && !allOn;
+      const groupChkAttr = allOn ? 'checked' : '';
+      const fieldsHtml = g.fields.map(f => {
+        const isGeoForced = GEO_FORMATS.has(s.format) && GEO_REQUIRED_KEYS.includes(f.key);
+        const checked = s.selected.has(f.key) || isGeoForced;
+        return `
+          <label class="field${isGeoForced ? ' disabled' : ''}">
+            <input type="checkbox" ${checked ? 'checked' : ''} ${isGeoForced ? 'disabled' : ''} onchange="toggleField('${f.key}')">
+            ${f.label}${isGeoForced ? '<span class="req-tag">(required)</span>' : ''}
+          </label>`;
+      }).join('');
+      return `
+        <div class="field-group">
+          <label class="grp-head">
+            <input type="checkbox" ${groupChkAttr} onchange="toggleGroup('${g.name}')" ref-indeterminate="${someOn ? 1 : 0}">
+            ${g.name} <span style="color:var(--text-muted); font-weight:500; margin-left:auto;">${on}/${total}</span>
+          </label>
+          <div class="field-list">${fieldsHtml}</div>
+        </div>`;
+    }).join('');
+
+    mount.innerHTML = `
+      <div class="modal-backdrop open" onclick="if (event.target === this) closeExportModal()">
+        <div class="modal" role="dialog" aria-labelledby="export-title">
+          <div class="modal-head">
+            <div>
+              <h2 id="export-title">Export Inspections</h2>
+              <div class="sub">Pick a format, scope, and the fields you want included.</div>
+            </div>
+            <button class="modal-close" onclick="closeExportModal()" aria-label="Close">\u00D7</button>
+          </div>
+          <div class="modal-body">
+            ${s.error ? `<div class="err-banner">${s.error}</div>` : ''}
+            <div class="section">
+              <div class="section-title">Format</div>
+              <div class="opt-grid">${fmtCardsHtml}</div>
+            </div>
+            <div class="section">
+              <div class="section-title">What to include</div>
+              <div class="opt-grid-2">${scopeCardsHtml}</div>
+            </div>
+            <div class="section">
+              <div class="field-toolbar">
+                <div class="section-title" style="margin:0;">Fields (${s.selected.size} selected)</div>
+                <div class="right">
+                  <button class="btn btn-outline btn-sm" onclick="selectAllFields()">Select all</button>
+                  <button class="btn btn-outline btn-sm" onclick="selectNoneFields()">Select none</button>
+                </div>
+              </div>
+              ${GEO_FORMATS.has(s.format) ? `
+                <div class="geo-note">Note: Latitude and Longitude are required for ${s.format.toUpperCase()} and will be included automatically.</div>
+              ` : ''}
+              <div class="field-grid">${groupsHtml}</div>
+            </div>
+          </div>
+          <div class="modal-foot">
+            <div class="summary">
+              Will export <b>${exportCount.toLocaleString()}</b> inspection${exportCount === 1 ? '' : 's'}
+              &middot; <b>${fieldCount}</b> field${fieldCount === 1 ? '' : 's'}
+              &middot; <b>${s.format.toUpperCase()}</b>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-outline" onclick="closeExportModal()" ${s.downloading ? 'disabled' : ''}>Cancel</button>
+              <button class="btn btn-primary" onclick="handleExportDownload()" ${s.downloading || exportCount === 0 || s.selected.size === 0 ? 'disabled' : ''}>
+                ${s.downloading ? 'Preparing\u2026' : 'Download'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    // Apply indeterminate state to group checkboxes (HTML attribute can't carry it).
+    mount.querySelectorAll('input[ref-indeterminate]').forEach(el => {
+      el.indeterminate = el.getAttribute('ref-indeterminate') === '1';
+    });
+  }
+
+  async function handleExportDownload() {
+    if (modalState.downloading) return;
+    if (modalState.selected.size === 0) {
+      modalState.error = 'Pick at least one field.';
+      renderExportModal();
+      return;
+    }
+    modalState.downloading = true;
+    modalState.error = null;
+    renderExportModal();
+
+    const fmt = modalState.format;
+    const fields = Array.from(modalState.selected);
+    if (GEO_FORMATS.has(fmt)) {
+      for (const k of GEO_REQUIRED_KEYS) if (!fields.includes(k)) fields.unshift(k);
+    }
+    // Project rows down to the selected fields, plus computed effective_disposition.
+    const rawRows = modalState.scope === 'all' ? modalState.rows : modalState.filteredRows;
+    const projected = rawRows.map(r => {
+      const out = {};
+      const eff = r.user_override || r.disposition || '';
+      for (const k of fields) {
+        if (k === 'effective_disposition') out[k] = eff;
+        else out[k] = r[k];
+      }
+      // For geo formats we always need lat/lng available even if not in fields.
+      if (GEO_FORMATS.has(fmt)) {
+        if (!('lat' in out)) out.lat = r.lat;
+        if (!('lng' in out)) out.lng = r.lng;
+        if (!('effective_disposition' in out)) out.effective_disposition = eff;
+        if (!('pole_number' in out)) out.pole_number = r.pole_number;
+      }
+      return out;
+    });
+
+    const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
+    const filename = `REI_Pole_Inspections_${stamp}.${fmt}`;
+    const metadata = {
+      Generated: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      Source: 'REI Pole Inspection Dashboard',
+      Format: fmt.toUpperCase(),
+      'Total Inspections': projected.length,
+      'Applied Filters': modalState.scope === 'all' ? '(none \u2014 full export)' : (modalState.filterSummary || '(none)'),
+    };
+
+    try {
+      let blob, mime;
+      if (fmt === 'csv') {
+        const body = buildCsv(projected, fields);
+        mime = 'text/csv;charset=utf-8';
+        blob = new Blob([body], { type: mime });
+      } else if (fmt === 'geojson') {
+        const body = buildGeoJson(projected, fields);
+        mime = 'application/geo+json';
+        blob = new Blob([body], { type: mime });
+      } else if (fmt === 'kml') {
+        const body = buildKml(projected, fields);
+        mime = 'application/vnd.google-earth.kml+xml';
+        blob = new Blob([body], { type: mime });
+      } else if (fmt === 'kmz') {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+        const kmlStr = buildKml(projected, fields);
+        const zip = new window.JSZip();
+        zip.file('doc.kml', kmlStr);
+        blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        mime = 'application/vnd.google-earth.kmz';
+      } else if (fmt === 'xlsx') {
+        await loadScript('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
+        blob = buildXlsx(projected, fields, metadata);
+        mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      } else if (fmt === 'pdf') {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+        blob = buildPdf(projected, fields, metadata);
+        mime = 'application/pdf';
+      } else {
+        throw new Error('Unsupported format: ' + fmt);
+      }
+
+      triggerDownload(blob, filename);
+      showToast('Downloaded ' + filename + ' (' + projected.length.toLocaleString() + ' rows)', 'success');
+      setTimeout(() => closeExportModal(), 400);
+    } catch (e) {
+      modalState.downloading = false;
+      modalState.error = 'Export failed: ' + (e.message || e);
+      renderExportModal();
+      showToast('Export failed: ' + (e.message || e), 'error');
+    }
+  }
+
+  function triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+  }
+
+  function loadScript(url) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector('script[data-cdn="' + url + '"]')) return resolve();
+      const s = document.createElement('script');
+      s.src = url;
+      s.setAttribute('data-cdn', url);
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Failed to load ' + url + ' \u2014 are you offline?'));
+      document.head.appendChild(s);
+    });
+  }
+
+  /* ----- Builders ----- */
+  function _csvCell(v) {
+    if (v == null) return '';
+    if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(Math.round(v * 1000000) / 1000000);
+    if (typeof v === 'boolean') return v ? 'true' : 'false';
+    const s = String(v);
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  function buildCsv(rows, fields) {
+    const headers = fields.map(k => (FIELD_BY_KEY[k] && FIELD_BY_KEY[k].label) || k);
+    const lines = [headers.map(_csvCell).join(',')];
+    for (const row of rows) lines.push(fields.map(k => _csvCell(row[k])).join(','));
+    return '\uFEFF' + lines.join('\r\n');
+  }
+
+  function buildGeoJson(rows, fields) {
+    const features = [];
+    for (const row of rows) {
+      const lat = row.lat, lng = row.lng;
+      if (lat == null || lng == null) continue;
+      const props = {};
+      for (const k of fields) {
+        if (k === 'lat' || k === 'lng') continue;
+        props[k] = row[k];
+      }
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [lng, lat] },
+        properties: props,
+      });
+    }
+    return JSON.stringify({ type: 'FeatureCollection', features }, null, 2);
+  }
+
+  function _xmlEscape(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
+  }
+  function buildKml(rows, fields) {
+    const geoRows = rows.filter(r => r.lat != null && r.lng != null);
+    const skipped = rows.length - geoRows.length;
+    const buckets = new Map();
+    for (const r of geoRows) {
+      const disp = (r.effective_disposition || r.user_override || r.disposition || '_default').toLowerCase();
+      if (!buckets.has(disp)) buckets.set(disp, []);
+      buckets.get(disp).push(r);
+    }
+
+    const parts = [];
+    parts.push('<?xml version="1.0" encoding="UTF-8"?>');
+    parts.push('<kml xmlns="http://www.opengis.net/kml/2.2">');
+    parts.push('<Document>');
+    parts.push('<name>' + _xmlEscape('REI Pole Inspections (' + geoRows.length + ')') + '</name>');
+    const skippedNote = skipped ? ('  Skipped ' + skipped + ' records that had no coordinates.') : '';
+    parts.push('<description>' + _xmlEscape(
+      'Generated by REI Pole Inspection Dashboard on ' + new Date().toISOString().slice(0, 16).replace('T', ' ') +
+      ' (' + geoRows.length + ' placemarks, ' + Math.max(0, fields.length - 2) + ' attribute fields).' + skippedNote
+    ) + '</description>');
+
+    for (const [disp, info] of Object.entries(DISPOSITION_PALETTE)) {
+      parts.push('<Style id="disp-' + disp + '">');
+      parts.push('<IconStyle><color>' + info.kml + '</color><scale>1.1</scale>');
+      parts.push('<Icon><href>http://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href></Icon></IconStyle>');
+      parts.push('<LabelStyle><scale>0.85</scale></LabelStyle>');
+      parts.push('</Style>');
+    }
+
+    const sortedBuckets = Array.from(buckets.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    for (const [disp, rowsInBucket] of sortedBuckets) {
+      const info = DISPOSITION_PALETTE[disp] || DISPOSITION_PALETTE._default;
+      parts.push('<Folder>');
+      parts.push('<name>' + _xmlEscape(info.label + ' (' + rowsInBucket.length + ')') + '</name>');
+      for (const row of rowsInBucket) parts.push(_kmlPlacemark(row, fields, disp));
+      parts.push('</Folder>');
+    }
+    parts.push('</Document></kml>');
+    return parts.join('\n');
+  }
+  function _kmlPlacemark(row, fields, disp) {
+    const name = String(row.pole_number || 'Pole');
+    const lat = row.lat, lng = row.lng;
+    const popupRows = [];
+    for (const k of fields) {
+      if (k === 'lat' || k === 'lng') continue;
+      const v = row[k];
+      if (v == null || v === '') continue;
+      const lbl = (FIELD_BY_KEY[k] && FIELD_BY_KEY[k].label) || k;
+      popupRows.push(
+        '<tr><td style="padding:2px 8px 2px 0;color:#555;font-weight:600">' + _xmlEscape(lbl) + '</td>' +
+        '<td style="padding:2px 0">' + _xmlEscape(String(v)) + '</td></tr>'
+      );
+    }
+    const popup =
+      '<div style="font-family:Arial,sans-serif;font-size:12px">' +
+      '<h3 style="margin:0 0 6px;color:#1F3A5C">' + _xmlEscape(name) + '</h3>' +
+      '<table style="border-collapse:collapse">' + popupRows.join('') + '</table></div>';
+
+    const ext = [];
+    for (const k of fields) {
+      if (k === 'lat' || k === 'lng') continue;
+      const v = row[k];
+      const lbl = (FIELD_BY_KEY[k] && FIELD_BY_KEY[k].label) || k;
+      ext.push(
+        '<Data name="' + _xmlEscape(k) + '">' +
+        '<displayName>' + _xmlEscape(lbl) + '</displayName>' +
+        '<value>' + _xmlEscape(v == null ? '' : String(v)) + '</value>' +
+        '</Data>'
+      );
+    }
+    return (
+      '<Placemark>' +
+      '<name>' + _xmlEscape(name) + '</name>' +
+      '<styleUrl>#disp-' + disp + '</styleUrl>' +
+      '<description><![CDATA[' + popup + ']]></description>' +
+      '<ExtendedData>' + ext.join('') + '</ExtendedData>' +
+      '<Point><coordinates>' + lng + ',' + lat + ',0</coordinates></Point>' +
+      '</Placemark>'
+    );
+  }
+
+  function buildXlsx(rows, fields, metadata) {
+    const X = window.XLSX;
+    if (!X) throw new Error('SheetJS failed to load');
+    const headers = fields.map(k => (FIELD_BY_KEY[k] && FIELD_BY_KEY[k].label) || k);
+    const data = [headers, ...rows.map(r => fields.map(k => {
+      const v = r[k];
+      if (v == null) return '';
+      return v;
+    }))];
+    const wb = X.utils.book_new();
+    const ws = X.utils.aoa_to_sheet(data);
+    // Approximate column widths: max(12, header.length + 2), capped at 40.
+    ws['!cols'] = headers.map(h => ({ wch: Math.min(Math.max(12, String(h).length + 2), 40) }));
+    ws['!freeze'] = { ySplit: 1 };
+    X.utils.book_append_sheet(wb, ws, 'Inspections');
+
+    // Metadata sheet
+    const metaRows = [['Key', 'Value']];
+    for (const [k, v] of Object.entries(metadata)) metaRows.push([k, String(v)]);
+    metaRows.push([]);
+    metaRows.push(['Included Fields']);
+    for (const k of fields) metaRows.push([k, (FIELD_BY_KEY[k] && FIELD_BY_KEY[k].label) || k]);
+    const metaWs = X.utils.aoa_to_sheet(metaRows);
+    metaWs['!cols'] = [{ wch: 28 }, { wch: 60 }];
+    X.utils.book_append_sheet(wb, metaWs, 'Metadata');
+
+    const out = X.write(wb, { type: 'array', bookType: 'xlsx' });
+    return new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  function buildPdf(rows, fields, metadata) {
+    const J = window.jspdf || window.jsPDF;
+    const ctor = (J && J.jsPDF) ? J.jsPDF : window.jsPDF;
+    if (!ctor) throw new Error('jsPDF failed to load');
+    const doc = new ctor({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+    const PAGE_W = doc.internal.pageSize.getWidth();
+    const PAGE_H = doc.internal.pageSize.getHeight();
+    const M = 40;
+
+    // Cover page
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(196, 18, 48);
+    doc.text('REI Pole Inspection Report', M, 70);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    let y = 100;
+    for (const [k, v] of Object.entries(metadata)) {
+      doc.text(k + ': ' + String(v), M, y);
+      y += 16;
+    }
+    doc.setDrawColor(220, 220, 220);
+    doc.line(M, y + 8, PAGE_W - M, y + 8);
+    y += 28;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total Inspections: ' + rows.length, M, y);
+
+    // One page per pole (max 200 to keep PDF a sensible size).
+    const detailRows = rows.slice(0, 200);
+    for (let i = 0; i < detailRows.length; i++) {
+      const row = detailRows[i];
+      doc.addPage();
+      const disp = String(row.effective_disposition || row.disposition || '_default').toLowerCase();
+      const info = DISPOSITION_PALETTE[disp] || DISPOSITION_PALETTE._default;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(196, 18, 48);
+      doc.text('Pole ' + (row.pole_number || '(unknown)'), M, 60);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      const r = parseInt(info.hex.slice(0, 2), 16);
+      const g = parseInt(info.hex.slice(2, 4), 16);
+      const b = parseInt(info.hex.slice(4, 6), 16);
+      doc.setTextColor(r, g, b);
+      doc.text(info.label + (row.data_source ? '  \u2014  ' + row.data_source : ''), M, 80);
+      const tableBody = [];
+      for (const k of fields) {
+        const v = row[k];
+        if (v == null || v === '') continue;
+        const lbl = (FIELD_BY_KEY[k] && FIELD_BY_KEY[k].label) || k;
+        tableBody.push([lbl, String(v)]);
+      }
+      if (tableBody.length === 0) tableBody.push(['(no data)', '']);
+      doc.autoTable({
+        head: [['Field', 'Value']],
+        body: tableBody,
+        startY: 100,
+        theme: 'grid',
+        headStyles: { fillColor: [26, 28, 32], textColor: [240, 241, 243], fontStyle: 'bold', fontSize: 10 },
+        styles: { fontSize: 9, cellPadding: 4, textColor: [40, 40, 40] },
+        alternateRowStyles: { fillColor: [246, 248, 252] },
+        columnStyles: { 0: { cellWidth: 160, fontStyle: 'bold' } },
+        margin: { left: M, right: M },
+      });
+    }
+    if (rows.length > detailRows.length) {
+      doc.addPage();
+      doc.setFontSize(11);
+      doc.setTextColor(80, 80, 80);
+      doc.text(
+        'Note: PDF detail pages capped at the first 200 inspections (' +
+        (rows.length - detailRows.length).toLocaleString() + ' more rows in this export).',
+        M, 60
+      );
+      doc.text('Re-export as CSV / XLSX to see every row.', M, 80);
+    }
+    const arrBuf = doc.output('arraybuffer');
+    return new Blob([arrBuf], { type: 'application/pdf' });
+  }
+
+  /* ----- Toast ----- */
+  let toastTimer = null;
+  function showToast(msg, kind) {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.className = 'toast show' + (kind ? ' ' + kind : '');
+    el.textContent = msg;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = 'toast'; }, 3500);
+  }
+
+  /* ============================================================
+   * 8d. Import CSV — lets the recipient drop in a real export
+   * from the live dashboard so this file becomes their personal
+   * dashboard for that dataset.
+   * ============================================================ */
+  function parseCsv(text) {
+    // Simple but robust RFC-4180 parser. Handles quoted fields,
+    // doubled quotes, embedded commas/newlines, BOM, CR/LF mix.
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    const rows = [];
+    let row = [];
+    let field = '';
+    let i = 0;
+    let inQuotes = false;
+    while (i < text.length) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+          inQuotes = false; i++; continue;
+        }
+        field += c; i++; continue;
+      }
+      if (c === '"') { inQuotes = true; i++; continue; }
+      if (c === ',') { row.push(field); field = ''; i++; continue; }
+      if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+      if (c === '\r') {
+        if (text[i + 1] === '\n') { row.push(field); rows.push(row); row = []; field = ''; i += 2; continue; }
+        row.push(field); rows.push(row); row = []; field = ''; i++; continue;
+      }
+      field += c; i++;
+    }
+    if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+    return rows.filter(r => r.some(c => c !== ''));
+  }
+
+  function _matchHeader(h) {
+    // Live exports use human labels ("Pole #", "Latitude", ...). Map them
+    // back to our keys via FIELD_DEFS.label, falling back to direct key match.
+    const trimmed = String(h).trim();
+    const byLabel = FIELD_DEFS.find(f => f.label.toLowerCase() === trimmed.toLowerCase());
+    if (byLabel) return byLabel.key;
+    const byKey = FIELD_DEFS.find(f => f.key.toLowerCase() === trimmed.toLowerCase().replace(/\s+/g, '_'));
+    if (byKey) return byKey.key;
+    return null;
+  }
+  function _coerceValue(key, raw) {
+    if (raw == null) return null;
+    const s = String(raw).trim();
+    if (s === '') return null;
+    const def = FIELD_BY_KEY[key];
+    if (!def) return s;
+    if (def.type === 'number') {
+      const n = parseFloat(s.replace(/,/g, ''));
+      return Number.isFinite(n) ? n : null;
+    }
+    if (def.key === 'nesc_reject') return /^(yes|true|1)$/i.test(s);
+    return s;
+  }
+
+  function applyImportedRows(rows, filename) {
+    if (!rows || rows.length < 2) throw new Error('CSV is empty.');
+    const headers = rows[0].map(_matchHeader);
+    const validIdxs = headers.map((k, i) => k ? i : -1).filter(i => i >= 0);
+    if (validIdxs.length === 0) throw new Error('No recognized column names. Expected headers like "Pole #", "Inspection Date", etc.');
+    const haveKey = new Set(validIdxs.map(i => headers[i]));
+    if (!haveKey.has('pole_number') && !haveKey.has('disposition') && !haveKey.has('effective_disposition')) {
+      throw new Error('CSV must include at least Pole # and a Disposition column.');
+    }
+    const out = [];
+    let id = 1;
+    for (let r = 1; r < rows.length; r++) {
+      const cells = rows[r];
+      const obj = { id };
+      for (const i of validIdxs) {
+        const k = headers[i];
+        obj[k] = _coerceValue(k, cells[i]);
+      }
+      // Defaults for fields the CSV may omit so the rest of the UI keeps working.
+      if (obj.disposition == null && obj.effective_disposition != null) obj.disposition = obj.effective_disposition;
+      if (obj.review_status == null) obj.review_status = 'approved';
+      if (obj.user_override === null || obj.user_override === '') obj.user_override = null;
+      if (obj.nesc_reject == null) obj.nesc_reject = false;
+      if (obj.test_type == null) obj.test_type = 'Sound + Bore';
+      if (obj.data_source == null) obj.data_source = 'IMPORT';
+      if (obj.inspection_date == null) obj.inspection_date = '';
+      out.push(obj);
+      id++;
+    }
+    out.sort((a, b) => ((a.inspection_date || '') < (b.inspection_date || '') ? 1 : -1));
+    ALL_ITEMS = out;
+    DATA_SOURCE_LABEL = 'Imported: ' + filename + ' (' + out.length.toLocaleString() + ' rows)';
+    recomputeStats();
+    // Reset to dashboard with no filters so the new data is fully visible.
+    window.location.hash = '#/';
+    render();
+    updateImportStatus();
+    showToast('Imported ' + out.length.toLocaleString() + ' inspections from ' + filename, 'success');
+  }
+
+  function handleImportFile(ev) {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || '');
+        const rows = parseCsv(text);
+        applyImportedRows(rows, file.name);
+      } catch (e) {
+        showToast('Import failed: ' + (e.message || e), 'error');
+      } finally {
+        ev.target.value = '';
+      }
+    };
+    reader.onerror = () => { showToast('Could not read file.', 'error'); ev.target.value = ''; };
+    reader.readAsText(file);
+  }
+  function triggerImport() {
+    const input = document.getElementById('import-file-input');
+    if (input) input.click();
+  }
+  function resetToSampleData() {
+    if (!confirm('Reset to the built-in sample dataset? Your imported data will be cleared.')) return;
+    ALL_ITEMS = buildSampleDataset();
+    DATA_SOURCE_LABEL = 'Sample data \u2014 internal review';
+    recomputeStats();
+    window.location.hash = '#/';
+    render();
+    updateImportStatus();
+    showToast('Reverted to sample dataset.', 'success');
+  }
+  function updateImportStatus() {
+    const el = document.getElementById('import-status');
+    if (!el) return;
+    el.textContent = DATA_SOURCE_LABEL;
+    el.classList.toggle('live', !DATA_SOURCE_LABEL.startsWith('Sample'));
+    const sub = document.getElementById('hdr-sub');
+    if (sub) sub.textContent = DATA_SOURCE_LABEL.startsWith('Sample')
+      ? 'Review Dashboard \u2014 Sample data'
+      : 'Review Dashboard \u2014 Imported dataset';
+    const reset = document.getElementById('reset-sample-btn');
+    if (reset) reset.style.display = DATA_SOURCE_LABEL.startsWith('Sample') ? 'none' : 'inline-flex';
+  }
+
+  // Expose handlers used by inline event attributes.
+  window.openExportModal = openExportModal;
+  window.closeExportModal = closeExportModal;
+  window.setExportFormat = setExportFormat;
+  window.setExportScope = setExportScope;
+  window.toggleField = toggleField;
+  window.toggleGroup = toggleGroup;
+  window.selectAllFields = selectAllFields;
+  window.selectNoneFields = selectNoneFields;
+  window.handleExportDownload = handleExportDownload;
+  window.handleImportFile = handleImportFile;
+  window.triggerImport = triggerImport;
+  window.resetToSampleData = resetToSampleData;
+  // Backwards-compat shims for any older inline attrs.
+  window.exportDashboardCsv = () => openExportModal('all');
+  window.exportInspectionsCsv = () => openExportModal('filtered');
+
+  /* ============================================================
+   * 9. Top-level route dispatcher
+   * ============================================================ */
+  function render() {
+    renderNav();
+    const { path } = parseHash();
+    // Tear down lifecycle-bound widgets (Leaflet map, Chart.js report
+    // charts) when navigating to anything other than the page that
+    // owns them. Each owning renderer also calls these defensively.
+    if (path !== '/map' && leafletMap) {
+      try { leafletMap.remove(); } catch (_) {}
+      leafletMap = null;
+      leafletMarkers = null;
+    }
+    if (path !== '/reports') destroyReportCharts();
+
+    if (path === '/' || path === '') return renderDashboard();
+    if (path === '/inspections') return renderInspections();
+    if (path.startsWith('/inspections/')) return renderPoleDetail(path.slice('/inspections/'.length));
+    if (path === '/map') return renderMap();
+    if (path === '/reports') return renderReports();
+    document.getElementById('main').innerHTML = `
+      <div class="placeholder">
+        <h2>Page not found</h2>
+        <p>Try <a href="#/" style="color:var(--red); text-decoration:underline;">Dashboard</a>.</p>
+      </div>`;
+  }
+
+  document.getElementById('hdr-date').textContent = new Date().toISOString().slice(0, 10);
+  document.getElementById('ftr-date').textContent = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+
+  window.addEventListener('hashchange', render);
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modalState.open) closeExportModal(); });
+  window.addEventListener('DOMContentLoaded', () => {
+    if (!window.location.hash) window.location.hash = '#/';
+    render();
+    updateImportStatus();
+  });
+  </script>
+
+  <!-- Modal mount + toast -->
+  <div id="export-modal-mount"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
