@@ -562,8 +562,8 @@
 if(window.self!==window.top){document.documentElement.classList.add('in-iframe');}
 </script>
 <style>
-html.in-iframe .header,html.in-iframe .nav-bar{display:none!important}
-html.in-iframe .main{padding-top:12px}
+html.in-iframe .header{display:none!important}
+html.in-iframe .nav-bar{position:static;top:0}
 </style>
 </head>
 <body>
