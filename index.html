@@ -751,13 +751,14 @@
 
   <!-- ArcGIS Map -->
   <div class="narr">
-    <h3><span class="ic"></span>Coverage Map &nbsp;<a href="https://experience.arcgis.com/experience/8a8d5ffceba64b97a3ef0794a709defa" target="_blank" rel="noopener" style="font-size:11px;font-weight:400;color:var(--rei-red);text-decoration:none;vertical-align:middle">Open full map &rarr;</a></h3>
-    <div id="arcgis-map-wrap" style="position:relative;width:100%;height:calc(100vh - 300px);min-height:600px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#111214;">
-      <div id="arcgis-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;color:var(--muted);font-size:13px;cursor:pointer" onclick="document.getElementById('arcgis-placeholder').style.display='none';document.getElementById('arcgis-frame').style.display='block';">
-        <span class="loader"></span>
-        <span>Loading ArcGIS map&hellip; <strong style="color:#fff">Click here</strong> if it doesn&rsquo;t load automatically</span>
+    <h3><span class="ic"></span>Coverage Map</h3>
+    <div style="display:flex;align-items:center;justify-content:center;padding:40px 20px;border:1px dashed var(--line);border-radius:8px;background:rgba(255,255,255,.02);text-align:center">
+      <div>
+        <div style="font-size:36px;margin-bottom:12px;opacity:.6">&#127758;</div>
+        <p style="font-size:13px;color:var(--muted);margin:0 0 6px 0">The interactive ArcGIS coverage map requires authentication and cannot be embedded directly.</p>
+        <p style="font-size:12px;color:var(--muted);margin:0 0 16px 0">Click below to open the full interactive map in a new window.</p>
+        <a href="https://experience.arcgis.com/experience/8a8d5ffceba64b97a3ef0794a709defa" target="_blank" rel="noopener" class="app-launch-btn" style="font-size:14px;padding:12px 32px">Open Coverage Map &rarr;</a>
       </div>
-      <iframe id="arcgis-frame" src="https://experience.arcgis.com/experience/8a8d5ffceba64b97a3ef0794a709defa" loading="lazy" style="display:none;width:100%;height:100%;border:none;" allowfullscreen onload="document.getElementById('arcgis-placeholder').style.display='none';this.style.display='block';"></iframe>
     </div>
   </div>
 </section>
@@ -808,6 +809,8 @@
         <div class="kvp"><span class="k">Field Applicator</span><span class="v" style="color:#22c55e">Existing</span></div>
         <div class="kvp"><span class="k">Field Technician</span><span class="v" style="color:#3b82f6">New Fill</span></div>
         <div class="kvp"><span class="k">Field Technician</span><span class="v" style="color:#3b82f6">New Fill</span></div>
+        <h3 style="color:#22c55e;margin-top:10px">GIS &amp; Mapping</h3>
+        <div class="kvp"><span class="k">Head of GIS Services</span><span class="v" style="color:#22c55e">Existing</span></div>
       </div>
       <div class="card" style="border-top:3px solid #22c55e">
         <h3 style="color:#22c55e">Substation Engineering</h3>
@@ -830,8 +833,6 @@
         <div class="kvp"><span class="k">Engineering Technician</span><span class="v" style="color:#3b82f6">New Fill</span></div>
         <h3 style="color:#f59e0b;margin-top:10px">Open Departments</h3>
         <div class="kvp"><span class="k">Head of Transmission</span><span class="v" style="color:#f59e0b">Open Now</span></div>
-        <h3 style="color:#22c55e;margin-top:10px">GIS &amp; Mapping</h3>
-        <div class="kvp"><span class="k">Head of GIS Services</span><span class="v" style="color:#22c55e">Existing</span></div>
       </div>
       <div class="card" style="border-top:3px solid #22c55e">
         <h3 style="color:#22c55e">Admin &amp; Support</h3>
@@ -1284,7 +1285,7 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
     document.getElementById('backlog-val').textContent=fmt(bDisplay);
     document.getElementById('backlog-meta').textContent='Remaining Backlog • '+d.backlog.itemCount.toLocaleString()+' projects • Updated '+new Date(d.generatedAt).toLocaleString();
     document.getElementById('forecast-val').textContent=fmt(fDisplay);
-    document.getElementById('forecast-meta').textContent='Current Project Revenue • '+d.forecast.itemCount.toLocaleString()+' projects • Updated '+new Date(d.generatedAt).toLocaleString();
+    document.getElementById('forecast-meta').textContent=(d.forecast.source||'Forecast')+' • '+d.forecast.itemCount.toLocaleString()+' projects • Updated '+new Date(d.generatedAt).toLocaleString();
     var bSvc=d.backlog.byServiceLine||[];
     var fSvc=d.forecast.byServiceLine||[];
     if(bSvc.length||fSvc.length){
@@ -1302,24 +1303,6 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
     document.getElementById('forecast-val').textContent='--';
     document.getElementById('forecast-meta').textContent='Unable to load • '+e.message;
   });
-})();
-
-// ArcGIS map: show iframe once BD tab is first activated, with timeout fallback
-(function(){
-  var frame=document.getElementById('arcgis-frame');
-  var ph=document.getElementById('arcgis-placeholder');
-  if(!frame) return;
-  var loaded=false;
-  frame.addEventListener('load',function(){
-    loaded=true;
-    if(ph) ph.style.display='none';
-    frame.style.display='block';
-  });
-  setTimeout(function(){
-    if(!loaded && ph){
-      ph.innerHTML='<div style="text-align:center"><p style="color:var(--muted);font-size:13px;margin-bottom:12px">The ArcGIS map is taking too long to load in the embedded view.</p><a href="https://experience.arcgis.com/experience/8a8d5ffceba64b97a3ef0794a709defa" target="_blank" rel="noopener" class="app-launch-btn" style="font-size:14px;padding:12px 28px">Open Coverage Map &rarr;</a></div>';
-    }
-  },15000);
 })();
 
 // Sub-tab switching within Tech & AI
