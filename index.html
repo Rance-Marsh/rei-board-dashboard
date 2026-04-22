@@ -153,7 +153,17 @@
   .svc-bar .svc-name{min-width:200px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .svc-bar .svc-track{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
   .svc-bar .svc-fill{height:100%;background:var(--rei-red);border-radius:4px;transition:width .6s ease}
+  .svc-bar .svc-seg{display:inline-block;height:100%;transition:opacity .15s;cursor:pointer}
+  .svc-bar .svc-seg:first-child{border-radius:4px 0 0 4px}
+  .svc-bar .svc-seg:last-child{border-radius:0 4px 4px 0}
+  .svc-bar .svc-seg:only-child{border-radius:4px}
+  .svc-bar .svc-seg:hover{opacity:.75}
   .svc-bar .svc-val{min-width:90px;text-align:right;font-weight:600;color:#fff}
+  .svc-bar .svc-track{display:flex;overflow:hidden}
+  .client-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+  .client-leg{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap}
+  .client-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+  #client-tooltip{display:none;position:fixed;background:#1a1a1e;color:#fff;border:1px solid var(--line);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;pointer-events:none;z-index:100;white-space:nowrap;transform:translateX(-50%);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 </style>
 </head>
 <body>
@@ -742,10 +752,12 @@
     <div class="narr" id="backlog-svc-wrap">
       <h3><span class="ic"></span>Backlog by Service Line</h3>
       <div id="backlog-svc"></div>
+      <div class="client-legend" id="backlog-legend"></div>
     </div>
     <div class="narr" id="forecast-svc-wrap">
       <h3><span class="ic"></span>Forecast by Service Line</h3>
       <div id="forecast-svc"></div>
+      <div class="client-legend" id="forecast-legend"></div>
     </div>
   </div>
 
@@ -958,6 +970,7 @@
 
 </main>
 <footer>REI Utility Services &mdash; Board Dashboard Q1 2026 &middot; Figures tied to REI &mdash; Financial MRP (March 2026). Combined = REI + Torlan unless otherwise noted. All figures in USD; long-term trend and P&amp;L detail in $000s. &middot; Private &amp; Confidential<br><em style="opacity:.7">These financial statements are preliminary, unaudited, and subject to adjustment upon completion of the audit.</em></footer>
+<div id="client-tooltip"></div>
 
 <script>
 
@@ -1262,17 +1275,68 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
 // Monday.com Backlog & Forecast live data
 (function(){
   var PROXY='https://backlog-proxy.vercel.app/api/backlog';
+  var CLIENT_COLORS=['#C8102E','#3b82f6','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#a855f7','#ef4444','#6366f1','#84cc16','#e879f9','#fb923c','#2dd4bf','#818cf8','#fbbf24','#f472b6','#34d399'];
+  var clientColorMap={};
+  var colorIdx=0;
+
   function fmt(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
-  function renderBars(container,lines,max){
+
+  function getClientColor(name){
+    if(!clientColorMap[name]){
+      clientColorMap[name]=CLIENT_COLORS[colorIdx%CLIENT_COLORS.length];
+      colorIdx++;
+    }
+    return clientColorMap[name];
+  }
+
+  function renderBars(container,lines,max,legendContainer){
     var html='';
+    var allClients={};
     for(var i=0;i<lines.length;i++){
-      var pct=max>0?Math.round(lines[i].val/max*100):0;
-      html+='<div class="svc-bar"><span class="svc-name">'+lines[i].name+'</span>'
-        +'<span class="svc-track"><span class="svc-fill" style="width:'+pct+'%"></span></span>'
-        +'<span class="svc-val">'+fmt(lines[i].val)+'</span></div>';
+      var s=lines[i];
+      var pct=max>0?Math.round(s.val/max*100):0;
+      var segs='';
+      if(s.clients&&s.clients.length){
+        for(var j=0;j<s.clients.length;j++){
+          var c=s.clients[j];
+          var cPct=s.val>0?(c.amount/s.val*100):0;
+          var color=getClientColor(c.name);
+          allClients[c.name]=color;
+          segs+='<span class="svc-seg" style="width:'+cPct.toFixed(2)+'%;background:'+color+'" data-client="'+c.name.replace(/"/g,'&quot;')+'" data-amount="'+fmt(c.amount)+'"></span>';
+        }
+      } else {
+        segs='<span class="svc-fill" style="width:100%"></span>';
+      }
+      html+='<div class="svc-bar"><span class="svc-name">'+s.name+'</span>'
+        +'<span class="svc-track" style="width:calc('+(pct<8?8:pct)+'% + 0px)">'+segs+'</span>'
+        +'<span class="svc-val">'+fmt(s.val)+'</span></div>';
     }
     container.innerHTML=html;
+
+    var legHtml='';
+    var entries=Object.keys(allClients);
+    if(entries.length>0){
+      for(var k=0;k<entries.length;k++){
+        legHtml+='<span class="client-leg"><span class="client-dot" style="background:'+allClients[entries[k]]+'"></span>'+entries[k]+'</span>';
+      }
+    }
+    if(legendContainer) legendContainer.innerHTML=legHtml;
+
+    container.querySelectorAll('.svc-seg').forEach(function(seg){
+      seg.addEventListener('mouseenter',function(e){
+        var tip=document.getElementById('client-tooltip');
+        tip.textContent=seg.getAttribute('data-client')+': '+seg.getAttribute('data-amount');
+        tip.style.display='block';
+        var r=seg.getBoundingClientRect();
+        tip.style.left=(r.left+r.width/2)+'px';
+        tip.style.top=(r.top-30)+'px';
+      });
+      seg.addEventListener('mouseleave',function(){
+        document.getElementById('client-tooltip').style.display='none';
+      });
+    });
   }
+
   fetch(PROXY).then(function(r){return r.json()}).then(function(d){
     var bDisplay=d.backlog.remainingBacklog||0;
     var fDisplay=d.forecast.forecastTotal||0;
@@ -1284,12 +1348,12 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
     var fSvc=d.forecast.byServiceLine||[];
     if(bSvc.length||fSvc.length){
       document.getElementById('backlog-breakdown').style.display='';
-      var bLines=bSvc.map(function(s){return {name:s.group,val:s.total}});
-      var fLines=fSvc.map(function(s){return {name:s.group,val:s.total}});
+      var bLines=bSvc.map(function(s){return {name:s.group,val:s.total,clients:s.clients||[]}});
+      var fLines=fSvc.map(function(s){return {name:s.group,val:s.total,clients:s.clients||[]}});
       var bMax=bLines.length?bLines[0].val:0;
       var fMax=fLines.length?fLines[0].val:0;
-      renderBars(document.getElementById('backlog-svc'),bLines,bMax);
-      renderBars(document.getElementById('forecast-svc'),fLines,fMax);
+      renderBars(document.getElementById('backlog-svc'),bLines,bMax,document.getElementById('backlog-legend'));
+      renderBars(document.getElementById('forecast-svc'),fLines,fMax,document.getElementById('forecast-legend'));
     }
   }).catch(function(e){
     document.getElementById('backlog-val').textContent='--';
