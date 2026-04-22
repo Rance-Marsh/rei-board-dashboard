@@ -163,6 +163,24 @@
   .client-legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
   .client-leg{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap}
   .client-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+  .snap-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:0;margin-bottom:14px}
+  .snap-col{display:flex;flex-direction:column;gap:0}
+  .snap-hdr{padding:12px 16px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:center;border-radius:6px 6px 0 0}
+  .snap-hdr.left{background:var(--soft);color:var(--muted)}
+  .snap-hdr.right{background:var(--rei-red);color:#fff}
+  .snap-hdr.mid{background:transparent;min-width:60px}
+  .snap-row{display:contents}
+  .snap-cell{padding:10px 16px;border-bottom:1px solid var(--line);text-align:center}
+  .snap-cell .sv{font-size:20px;font-weight:800;color:#fff;letter-spacing:-.3px}
+  .snap-cell .sl{font-size:11px;color:var(--muted);margin-top:2px}
+  .snap-cell.left{background:rgba(255,255,255,.02)}
+  .snap-cell.right{background:rgba(200,16,46,.04)}
+  .snap-arrow{display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--line);padding:0 8px}
+  .snap-arrow svg{width:36px;height:16px}
+  .snap-arrow svg path{fill:var(--rei-red)}
+  .snap-dir{display:inline-block;font-size:14px;font-weight:700;margin-left:4px}
+  .snap-dir.up{color:var(--good)}
+  .snap-dir.down{color:var(--bad)}
   #client-tooltip{display:none;position:fixed;background:#1a1a1e;color:#fff;border:1px solid var(--line);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;pointer-events:none;z-index:100;white-space:nowrap;transform:translateX(-50%);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 </style>
 </head>
@@ -186,6 +204,7 @@
   <button data-tab="cf">Cash Flow</button>
   <button data-tab="history">10-Year Trend</button>
   <button data-tab="commentary">Commentary &amp; Takeaways</button>
+  <button data-tab="snapshot">Snapshot &amp; Initiatives</button>
   <button data-tab="operations">Operations</button>
   <button data-tab="bd">Business Development</button>
   <button data-tab="pipeline">Backlog &amp; Forecast</button>
@@ -642,6 +661,79 @@
 
 
 
+<!-- ============ SNAPSHOT & INITIATIVES ============ -->
+<section class="section" id="snapshot">
+  <h2 class="section-title"><span class="dot"></span>Q1 Performance Snapshot &amp; Key Initiatives</h2>
+
+  <div class="narr" style="margin-bottom:14px">
+    <h3><span class="ic"></span>At Closing vs. Current &mdash; Key Operational &amp; Financial Trends</h3>
+    <div class="snap-grid">
+      <div class="snap-hdr left">At Closing (TTM Sept 2024)</div>
+      <div class="snap-hdr mid"></div>
+      <div class="snap-hdr right">Check-In (TTM Dec 2025)</div>
+
+      <div class="snap-cell left"><div class="sv">$16.44M</div><div class="sl">Revenue</div></div>
+      <div class="snap-arrow"><span class="snap-dir up">&#9650;</span></div>
+      <div class="snap-cell right"><div class="sv">$19.64M</div><div class="sl">Revenue</div></div>
+
+      <div class="snap-cell left"><div class="sv">$8.24M</div><div class="sl">EBITDA</div></div>
+      <div class="snap-arrow"><span class="snap-dir down">&#9660;</span></div>
+      <div class="snap-cell right"><div class="sv">$7.21M</div><div class="sl">EBITDA</div></div>
+
+      <div class="snap-cell left"><div class="sv">1</div><div class="sl">Branch Location</div></div>
+      <div class="snap-arrow"><span class="snap-dir up">&#9650;</span></div>
+      <div class="snap-cell right"><div class="sv">2</div><div class="sl">Branch Locations</div></div>
+
+      <div class="snap-cell left"><div class="sv">50</div><div class="sl">Employees</div></div>
+      <div class="snap-arrow"><span class="snap-dir up">&#9650;</span></div>
+      <div class="snap-cell right"><div class="sv">94</div><div class="sl">Employees</div></div>
+
+      <div class="snap-cell left"><div class="sv">29</div><div class="sl">Technicians (Field + Staking)</div></div>
+      <div class="snap-arrow"><span class="snap-dir up">&#9650;</span></div>
+      <div class="snap-cell right"><div class="sv">45</div><div class="sl">Technicians (Field + Staking)</div></div>
+
+      <div class="snap-cell left"><div class="sv">0</div><div class="sl">Engineers</div></div>
+      <div class="snap-arrow"><span class="snap-dir up">&#9650;</span></div>
+      <div class="snap-cell right"><div class="sv">9</div><div class="sl">Engineers</div></div>
+
+      <div class="snap-cell left"><div class="sv">41</div><div class="sl">Vehicles</div></div>
+      <div class="snap-arrow"><span class="snap-dir up">&#9650;</span></div>
+      <div class="snap-cell right"><div class="sv">46</div><div class="sl">Vehicles</div></div>
+
+      <div class="snap-cell left"><div class="sv">21</div><div class="sl">Coops Served (Revenue Generating)</div></div>
+      <div class="snap-arrow"><span class="snap-dir up">&#9650;</span></div>
+      <div class="snap-cell right"><div class="sv">28</div><div class="sl">Clients Served (Revenue Generating)</div></div>
+
+      <div class="snap-cell left"><div class="sv">1</div><div class="sl">State Served (Texas)</div></div>
+      <div class="snap-arrow"><span class="snap-dir up">&#9650;</span></div>
+      <div class="snap-cell right"><div class="sv">3</div><div class="sl">States Served</div></div>
+
+      <div class="snap-cell left" style="border-bottom:none"><div class="sv">43%</div><div class="sl">Charter RDOF IAP Exposure</div></div>
+      <div class="snap-arrow" style="border-bottom:none"><span class="snap-dir up">&#9650;</span></div>
+      <div class="snap-cell right" style="border-bottom:none"><div class="sv">0.7%</div><div class="sl">Charter RDOF IAP Exposure</div></div>
+    </div>
+  </div>
+
+  <!-- Key Strategic Initiatives -->
+  <div class="narr">
+    <h3><span class="ic"></span>Key Strategic Initiatives</h3>
+    <table class="team" style="font-size:12px">
+      <thead><tr><th style="width:22%">Initiative</th><th style="width:38%">Problem</th><th style="width:40%">Update</th></tr></thead>
+      <tbody>
+        <tr><td>EIT (Engineer-in-Training) Program</td><td>Difficulties hiring professional engineering talent</td><td>Hired 3 new Associate Substation Engineers; attended career fairs; established college relationships. Interviewing for HS program.</td></tr>
+        <tr><td>ERP / Advanced Financial System</td><td>Pain points in financial/accounting processes. 20+ hours/month on manual reports.</td><td>Implementation in progress. Sage Intacct Go-Live June 1. ADP Go-Live July.</td></tr>
+        <tr><td>EOS Rollout</td><td>Need organizational efficiency as we grow</td><td>EOS rolled out to Sales, Operations, and now Joint Use.</td></tr>
+        <tr><td>CRM Migration</td><td>Lack of CRM adoption; data duplication in Monday.com; no lead-to-completion visibility</td><td>CRM implemented. Currently in last mile, training reps.</td></tr>
+        <tr><td>Regional Integration Program</td><td>Maintaining consistent culture, training, and execution across geographies</td><td>Deploying experienced internal leaders into new markets; standardizing processes across regions.</td></tr>
+        <tr><td>Audit</td><td>N/A</td><td>First full-year audit underway.</td></tr>
+        <tr><td>New Office Facilities</td><td>Outgrowing current office spaces</td><td>HQ expansion in progress (architect, city, builder). Construction starts this summer. South TX office up and running.</td></tr>
+        <tr><td>Substation Field Commissioning</td><td>Need stronger leadership and oversight across substation and field commissioning</td><td>Added Head of Substation role. Brought on two Field Commissioning Technicians; path to Field Commissioning Manager.</td></tr>
+        <tr><td>Project Cost Analysis</td><td>Need to understand costs per project/service for competitive pricing while maintaining margins</td><td>Running the analysis on costs.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
 <!-- ============ OPERATIONS ============ -->
 <section class="section" id="operations">
   <h2 class="section-title"><span class="dot"></span>Operations &amp; Department Updates</h2>
@@ -685,26 +777,7 @@
 <section class="section" id="bd">
   <h2 class="section-title"><span class="dot"></span>Business Development</h2>
 
-  <!-- Key Strategic Initiatives (from Strategy tab) -->
-  <div class="narr" style="margin-bottom:14px">
-    <h3><span class="ic"></span>Key Strategic Initiatives</h3>
-    <table class="team" style="font-size:12px">
-      <thead><tr><th style="width:22%">Initiative</th><th style="width:38%">Problem</th><th style="width:40%">Update</th></tr></thead>
-      <tbody>
-        <tr><td>EIT (Engineer-in-Training) Program</td><td>Difficulties hiring professional engineering talent</td><td>Hired 3 new Associate Substation Engineers; attended career fairs; established college relationships. Interviewing for HS program.</td></tr>
-        <tr><td>ERP / Advanced Financial System</td><td>Pain points in financial/accounting processes. 20+ hours/month on manual reports.</td><td>Implementation in progress. Sage Intacct Go-Live June 1. ADP Go-Live July.</td></tr>
-        <tr><td>EOS Rollout</td><td>Need organizational efficiency as we grow</td><td>EOS rolled out to Sales, Operations, and now Joint Use.</td></tr>
-        <tr><td>CRM Migration</td><td>Lack of CRM adoption; data duplication in Monday.com; no lead-to-completion visibility</td><td>CRM implemented. Currently in last mile, training reps.</td></tr>
-        <tr><td>Regional Integration Program</td><td>Maintaining consistent culture, training, and execution across geographies</td><td>Deploying experienced internal leaders into new markets; standardizing processes across regions.</td></tr>
-        <tr><td>Audit</td><td>N/A</td><td>First full-year audit underway.</td></tr>
-        <tr><td>New Office Facilities</td><td>Outgrowing current office spaces</td><td>HQ expansion in progress (architect, city, builder). Construction starts this summer. South TX office up and running.</td></tr>
-        <tr><td>Substation Field Commissioning</td><td>Need stronger leadership and oversight across substation and field commissioning</td><td>Added Head of Substation role. Brought on two Field Commissioning Technicians; path to Field Commissioning Manager.</td></tr>
-        <tr><td>Project Cost Analysis</td><td>Need to understand costs per project/service for competitive pricing while maintaining margins</td><td>Running the analysis on costs.</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- BD Pipeline (from Strategy tab) -->
+  <!-- BD Pipeline -->
   <div class="narr" style="margin-bottom:14px">
     <h3><span class="ic"></span>Business Development Pipeline</h3>
     <div class="grid g-3">
