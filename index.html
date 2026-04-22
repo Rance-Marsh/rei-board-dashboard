@@ -147,6 +147,13 @@
   body.single-section .section{display:none!important}
   body.single-section .section.force-show{display:block!important}
   body.theme-transparent{background:transparent}
+  .loader{display:inline-block;width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--rei-red);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .svc-bar{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px}
+  .svc-bar .svc-name{min-width:200px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .svc-bar .svc-track{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+  .svc-bar .svc-fill{height:100%;background:var(--rei-red);border-radius:4px;transition:width .6s ease}
+  .svc-bar .svc-val{min-width:90px;text-align:right;font-weight:600;color:#fff}
 </style>
 </head>
 <body>
@@ -171,6 +178,7 @@
   <button data-tab="commentary">Commentary &amp; Takeaways</button>
   <button data-tab="strategy">Strategy &amp; Initiatives</button>
   <button data-tab="operations">Operations</button>
+  <button data-tab="bd">Business Development</button>
   <button data-tab="team">Team &amp; Organization</button>
   <button data-tab="technology">Tech &amp; AI</button>
   <button data-tab="risks">Risks &amp; Outlook</button>
@@ -711,6 +719,43 @@
   </div>
 </section>
 
+<!-- ============ BUSINESS DEVELOPMENT ============ -->
+<section class="section" id="bd">
+  <h2 class="section-title"><span class="dot"></span>Business Development</h2>
+
+  <!-- Backlog & Forecast KPIs -->
+  <div class="grid g-2" style="margin-bottom:14px">
+    <div class="card k" id="kpi-backlog">
+      <h3>Total Backlog <small style="font-weight:400;text-transform:none;letter-spacing:0">(Secured Work &mdash; Remaining Backlog)</small></h3>
+      <div class="val" id="backlog-val"><span class="loader"></span></div>
+      <div class="kpi-inline" id="backlog-meta">Loading from Monday.com&hellip;</div>
+    </div>
+    <div class="card k" id="kpi-forecast">
+      <h3>Total Forecast <small style="font-weight:400;text-transform:none;letter-spacing:0">(Weighted Probability &mdash; Mirrored Backlog)</small></h3>
+      <div class="val" id="forecast-val"><span class="loader"></span></div>
+      <div class="kpi-inline" id="forecast-meta">Loading from Monday.com&hellip;</div>
+    </div>
+  </div>
+
+  <!-- Service Line Breakdown -->
+  <div class="grid g-2" style="margin-bottom:14px;display:none" id="backlog-breakdown">
+    <div class="narr" id="backlog-svc-wrap">
+      <h3><span class="ic"></span>Backlog by Service Line</h3>
+      <div id="backlog-svc"></div>
+    </div>
+    <div class="narr" id="forecast-svc-wrap">
+      <h3><span class="ic"></span>Forecast by Service Line</h3>
+      <div id="forecast-svc"></div>
+    </div>
+  </div>
+
+  <!-- ArcGIS Map -->
+  <div class="narr">
+    <h3><span class="ic"></span>Coverage Map</h3>
+    <iframe src="https://experience.arcgis.com/experience/8a8d5ffceba64b97a3ef0794a709defa" style="width:100%;height:calc(100vh - 300px);min-height:600px;border:1px solid var(--line);border-radius:8px;background:#111214;" allowfullscreen></iframe>
+  </div>
+</section>
+
 <!-- ============ TEAM ============ -->
 <section class="section" id="team">
   <h2 class="section-title"><span class="dot"></span>Team &amp; Organization</h2>
@@ -789,7 +834,7 @@
         <div class="kvp"><span class="k">Talent Coordinator</span><span class="v" style="color:#22c55e">Existing</span></div>
         <h3 style="color:#eab308;margin-top:10px">Future Openings</h3>
         <div class="kvp"><span class="k">HR Director</span><span class="v" style="color:#eab308">Future</span></div>
-        <div class="kvp"><span class="k">HR Manager</span><span class="v" style="color:#eab308">Future</span></div>
+        <div class="kvp"><span class="k">HR Manager</span><span class="v" style="color:#22c55e">Existing</span></div>
       </div>
     </div>
   </div>
@@ -1211,6 +1256,52 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
   options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+(ctx.dataset.yAxisID==='y1'?ctx.parsed.y.toFixed(1)+'%':'$'+ctx.parsed.y.toLocaleString()+'K')}}},
     scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>'$'+(v/1e3).toFixed(0)+'M'}},y1:{position:'right',min:0,max:100,ticks:{callback:v=>v+'%'},grid:{drawOnChartArea:false}}}}});
 
+
+// Monday.com Backlog & Forecast live data
+(function(){
+  var PROXY='https://backlog-proxy.vercel.app/api/backlog';
+  function fmt(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+  function renderBars(container,lines,max){
+    var html='';
+    for(var i=0;i<lines.length;i++){
+      var pct=max>0?Math.round(lines[i].val/max*100):0;
+      html+='<div class="svc-bar"><span class="svc-name">'+lines[i].name+'</span>'
+        +'<span class="svc-track"><span class="svc-fill" style="width:'+pct+'%"></span></span>'
+        +'<span class="svc-val">'+fmt(lines[i].val)+'</span></div>';
+    }
+    container.innerHTML=html;
+  }
+  fetch(PROXY).then(function(r){return r.json()}).then(function(d){
+    var bTotal=d.backlog.remainingBacklog||0;
+    var bFallback=d.backlog.currentEstRevenue||0;
+    var fTotal=d.forecast.mirroredBacklog||0;
+    var fFallback=d.forecast.currentProjectRevenue||0;
+    var bDisplay=bTotal>0?bTotal:bFallback;
+    var fDisplay=fTotal>0?fTotal:fFallback;
+    var bLabel=bTotal>0?'Remaining Backlog':'Current Estimated Revenue';
+    var fLabel=fTotal>0?'Mirrored Backlog':'Current Project Revenue';
+    document.getElementById('backlog-val').textContent=fmt(bDisplay);
+    document.getElementById('backlog-meta').textContent=bLabel+' • '+d.backlog.itemCount.toLocaleString()+' projects • Updated '+new Date(d.generatedAt).toLocaleString();
+    document.getElementById('forecast-val').textContent=fmt(fDisplay);
+    document.getElementById('forecast-meta').textContent=fLabel+' • '+d.forecast.itemCount.toLocaleString()+' projects • Updated '+new Date(d.generatedAt).toLocaleString();
+    var bSvc=d.backlog.byServiceLine||[];
+    var fSvc=d.forecast.byServiceLine||[];
+    if(bSvc.length||fSvc.length){
+      document.getElementById('backlog-breakdown').style.display='';
+      var bLines=bSvc.map(function(s){return {name:s.group,val:s.primary>0?s.primary:s.fallback}});
+      var fLines=fSvc.map(function(s){return {name:s.group,val:s.primary>0?s.primary:s.fallback}});
+      var bMax=bLines.length?bLines[0].val:0;
+      var fMax=fLines.length?fLines[0].val:0;
+      renderBars(document.getElementById('backlog-svc'),bLines,bMax);
+      renderBars(document.getElementById('forecast-svc'),fLines,fMax);
+    }
+  }).catch(function(e){
+    document.getElementById('backlog-val').textContent='--';
+    document.getElementById('backlog-meta').textContent='Unable to load • '+e.message;
+    document.getElementById('forecast-val').textContent='--';
+    document.getElementById('forecast-meta').textContent='Unable to load • '+e.message;
+  });
+})();
 
 // Sub-tab switching within Tech & AI
 document.querySelectorAll('.sub-tab').forEach(function(btn){
