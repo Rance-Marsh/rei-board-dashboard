@@ -963,6 +963,7 @@
 
 Chart.defaults.color='#9ca3af';
 Chart.defaults.borderColor='rgba(255,255,255,.06)';
+Chart.defaults.plugins.legend.labels.color='#d1d5db';
 
 // ============ Tab switching ============
 document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
@@ -1049,8 +1050,8 @@ document.querySelectorAll('tr.expand-toggle').forEach(row=>{
 // ============ Common config ============
 const fmt$ = v => '$'+(Math.abs(v)>=1e6?(v/1e6).toFixed(2)+'M':(v/1e3).toFixed(0)+'K');
 const fmtPct = v => (v*100).toFixed(1)+'%';
-const REI_RED='#C8102E', REI_BLACK='#0E0E10';
-const PALETTE=['#C8102E','#0E0E10','#6b7280','#f0a500','#0f7b3f','#1f4e79','#7b2cbf','#0097a7','#b45309','#e63946','#457b9d','#6a994e'];
+const REI_RED='#C8102E', REI_BLACK='#52525b';
+const PALETTE=['#C8102E','#52525b','#6b7280','#f0a500','#0f7b3f','#1f4e79','#7b2cbf','#0097a7','#b45309','#e63946','#457b9d','#6a994e'];
 Chart.defaults.font.family='-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
 Chart.defaults.font.size=11;
 Chart.defaults.plugins.legend.labels.boxWidth=10;
@@ -1179,7 +1180,7 @@ new Chart(document.getElementById('chartBS'),{type:'bar',
     {label:'Fixed Assets',data:[1560930,1658330,1628238],backgroundColor:'#f0a500',stack:'A'},
     {label:'Other Assets (Goodwill, ROU)',data:[26394646,26110824,25899389],backgroundColor:'#6b7280',stack:'A'},
     {label:'Current Liabilities',data:[-1710954,-1800510,-2342279],backgroundColor:'#b42318',stack:'B'},
-    {label:'Long-Term Liabilities',data:[-15249836,-15250024,-13353485],backgroundColor:'#0E0E10',stack:'B'},
+    {label:'Long-Term Liabilities',data:[-15249836,-15250024,-13353485],backgroundColor:'#7c3aed',stack:'B'},
     {label:'Equity',data:[-19944631,-20237371,-20349357],backgroundColor:'#0f7b3f',stack:'B'}
   ]},
   options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt$(Math.abs(ctx.parsed.y))}}},
@@ -1190,7 +1191,7 @@ new Chart(document.getElementById('chartCfAct'),{type:'bar',
   data:{labels:['Jan 2026','Feb 2026','Mar 2026'],datasets:[
     {label:'Operating',data:[-887281,-433589,1600071],backgroundColor:REI_RED},
     {label:'Investing',data:[0,-134671,-79910],backgroundColor:'#f0a500'},
-    {label:'Financing',data:[247,188,-1896539],backgroundColor:'#0E0E10'}
+    {label:'Financing',data:[247,188,-1896539],backgroundColor:'#3b82f6'}
   ]},
   options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt$(ctx.parsed.y)}}},
     scales:{y:{ticks:{callback:v=>'$'+(v/1e6).toFixed(1)+'M'}}}}});
