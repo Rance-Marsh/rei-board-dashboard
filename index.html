@@ -188,6 +188,7 @@
   <button data-tab="commentary">Commentary &amp; Takeaways</button>
   <button data-tab="operations">Operations</button>
   <button data-tab="bd">Business Development</button>
+  <button data-tab="pipeline">Backlog &amp; Forecast</button>
   <button data-tab="team">Team &amp; Organization</button>
   <button data-tab="technology">Tech &amp; AI</button>
   <button data-tab="risks">Risks &amp; Outlook</button>
@@ -684,7 +685,60 @@
 <section class="section" id="bd">
   <h2 class="section-title"><span class="dot"></span>Business Development</h2>
 
-  <!-- Backlog & Forecast KPIs -->
+  <!-- Key Strategic Initiatives (from Strategy tab) -->
+  <div class="narr" style="margin-bottom:14px">
+    <h3><span class="ic"></span>Key Strategic Initiatives</h3>
+    <table class="team" style="font-size:12px">
+      <thead><tr><th style="width:22%">Initiative</th><th style="width:38%">Problem</th><th style="width:40%">Update</th></tr></thead>
+      <tbody>
+        <tr><td>EIT (Engineer-in-Training) Program</td><td>Difficulties hiring professional engineering talent</td><td>Hired 3 new Associate Substation Engineers; attended career fairs; established college relationships. Interviewing for HS program.</td></tr>
+        <tr><td>ERP / Advanced Financial System</td><td>Pain points in financial/accounting processes. 20+ hours/month on manual reports.</td><td>Implementation in progress. Sage Intacct Go-Live June 1. ADP Go-Live July.</td></tr>
+        <tr><td>EOS Rollout</td><td>Need organizational efficiency as we grow</td><td>EOS rolled out to Sales, Operations, and now Joint Use.</td></tr>
+        <tr><td>CRM Migration</td><td>Lack of CRM adoption; data duplication in Monday.com; no lead-to-completion visibility</td><td>CRM implemented. Currently in last mile, training reps.</td></tr>
+        <tr><td>Regional Integration Program</td><td>Maintaining consistent culture, training, and execution across geographies</td><td>Deploying experienced internal leaders into new markets; standardizing processes across regions.</td></tr>
+        <tr><td>Audit</td><td>N/A</td><td>First full-year audit underway.</td></tr>
+        <tr><td>New Office Facilities</td><td>Outgrowing current office spaces</td><td>HQ expansion in progress (architect, city, builder). Construction starts this summer. South TX office up and running.</td></tr>
+        <tr><td>Substation Field Commissioning</td><td>Need stronger leadership and oversight across substation and field commissioning</td><td>Added Head of Substation role. Brought on two Field Commissioning Technicians; path to Field Commissioning Manager.</td></tr>
+        <tr><td>Project Cost Analysis</td><td>Need to understand costs per project/service for competitive pricing while maintaining margins</td><td>Running the analysis on costs.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- BD Pipeline (from Strategy tab) -->
+  <div class="narr" style="margin-bottom:14px">
+    <h3><span class="ic"></span>Business Development Pipeline</h3>
+    <div class="grid g-3">
+      <div><h4>Key Wins &amp; Awards</h4><ul><li>Deep East (TX) &mdash; Pole testing, est. $290K</li><li>Indian Electric (OK) &mdash; Staking, $19.5K + 424 poles ($33.8K)</li><li>AECC (AR) &mdash; Substation work, est. $137.5K</li><li>Roosevelt (NM) &mdash; Pole testing, est. $90K</li><li>CCECA (TX) &mdash; Substation work, est. $8.5K</li></ul></div>
+      <div><h4>Active Negotiations</h4><ul><li>Claiborne Electric (LA) &mdash; Communication audit &amp; GIS inventory</li><li>Vistra &mdash; Finished 1st job, bidding another</li><li>Oncor &mdash; Jobs awarded for Spring &amp; Fall 2026</li><li>WFEC &mdash; Multiple RFPs submitted, incl. $1M+ services</li><li>AAEC &mdash; Won &amp; completed 1st job; bids out for more</li></ul></div>
+      <div><h4>Funnel Metrics (Q1)</h4><ul><li>Avg 86 contacts/week (+5% from Q4)</li><li>18 bids submitted (+38% from Q4)</li><li>3 MSAs submitted</li><li>2 MSAs executed (+100% from Q4)</li><li>26 multi-state MSAs at EOY 2025</li></ul></div>
+    </div>
+    <div class="grid g-2" style="margin-top:14px">
+      <div>
+        <h4>BD Team</h4>
+        <div class="hl">Combined 40+ years of experience working in electric utilities</div>
+        <p style="font-size:12px;color:var(--muted);margin-top:6px">5 Business Development Managers covering TX, OK, AR, NM, LA, TN, KY and expanding</p>
+      </div>
+      <div>
+        <h4>MSA Coverage &mdash; 26 Multi-State MSAs at EOY 2025</h4>
+        <div style="margin-top:4px">
+          <div class="kvp"><span class="k">New Clients under MSA (2026)</span><span class="v">Indian Electric (OK)</span></div>
+          <div class="kvp"><span class="k">MSA Pending Execution</span><span class="v">Southeastern EC (OK), Comanche EC (TX), City of Greenville (TX), Mississippi County EC (AR), Woodruff EC (AR), SW Rural Electric Assoc. (OK/TX), Lexington Electric System (TN), South Central Arkansas EC, Northeast Rural Electric (OK), South Plains Electric (OK), Arkansas Electric AECC, Ozark Electric (AR), Mississippi Electric (AR), Rural Electric Cooperative (OK)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ArcGIS Map -->
+  <div class="narr">
+    <h3><span class="ic"></span>Coverage Map</h3>
+    <iframe src="https://experience.arcgis.com/experience/8a8d5ffceba64b97a3ef0794a709defa" width="100%" height="600px" frameborder="0" style="border:1px solid var(--line);border-radius:8px;" allowfullscreen></iframe>
+  </div>
+</section>
+
+<!-- ============ BACKLOG & FORECAST ============ -->
+<section class="section" id="pipeline">
+  <h2 class="section-title"><span class="dot"></span>Backlog &amp; Forecast</h2>
+
   <div class="grid g-2" style="margin-bottom:14px">
     <div class="card k" id="kpi-backlog">
       <h3>Total Backlog <small style="font-weight:400;text-transform:none;letter-spacing:0">(Secured Work &mdash; Remaining Backlog)</small></h3>
@@ -698,7 +752,6 @@
     </div>
   </div>
 
-  <!-- Service Line Breakdown -->
   <div class="grid g-2" style="margin-bottom:14px;display:none" id="backlog-breakdown">
     <div class="narr" id="backlog-svc-wrap">
       <h3><span class="ic"></span>Backlog by Service Line</h3>
@@ -710,12 +763,6 @@
       <div id="forecast-svc"></div>
       <div class="client-legend" id="forecast-legend"></div>
     </div>
-  </div>
-
-  <!-- ArcGIS Map -->
-  <div class="narr">
-    <h3><span class="ic"></span>Coverage Map</h3>
-    <iframe src="https://experience.arcgis.com/experience/8a8d5ffceba64b97a3ef0794a709defa" width="100%" height="600px" frameborder="0" style="border:1px solid var(--line);border-radius:8px;" allowfullscreen></iframe>
   </div>
 </section>
 
