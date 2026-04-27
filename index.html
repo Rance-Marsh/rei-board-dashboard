@@ -201,16 +201,15 @@
   <button data-tab="bd">Business Development</button>
   <button data-tab="operations">Operations</button>
   <button data-tab="technology">Tech &amp; AI</button>
-  <button data-tab="pipeline">Backlog &amp; Forecast</button>
   <button data-tab="overview">Executive Overview</button>
   <button data-tab="revenue">Revenue &amp; Customers</button>
   <button data-tab="risks">Risks &amp; Outlook</button>
   <button data-tab="pnl">P&amp;L &mdash; Q1 2026</button>
   <button data-tab="budget">Budget vs Actual</button>
-  <button data-tab="bs">Balance Sheet</button>
-  <button data-tab="cf">Cash Flow</button>
   <button data-tab="history">10-Year Trend</button>
   <button data-tab="commentary">Commentary &amp; Takeaways</button>
+  <button data-tab="bs">Balance Sheet</button>
+  <button data-tab="cf">Cash Flow</button>
 </nav>
 <main>
 
@@ -403,6 +402,107 @@
 </section>
 
 <!-- ============ BALANCE SHEET ============ -->
+<section class="section" id="history">
+  <h2 class="section-title"><span class="dot"></span>Long-Term Financial Trend <small>(2016 – TTM Mar 2026 · Combined from 2022 per MRP)</small></h2>
+
+  <div class="grid g-3">
+    <div class="card">
+      <h3 style="margin-bottom:10px">Revenue ($000s)</h3>
+      <div class="chart-wrap"><canvas id="chartRev10y"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:10px">Gross Profit &amp; Margin</h3>
+      <div class="chart-wrap"><canvas id="chartGp10y"></canvas></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:10px">PF Adj. EBITDA &amp; Margin</h3>
+      <div class="chart-wrap"><canvas id="chartEb10y"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3 style="margin-bottom:10px">Historical Snapshot ($000s)</h3>
+    <table class="fin">
+      <thead><tr><th>Year</th><th>Revenue</th><th>Gross Profit</th><th>GM %</th><th>PF Adj. EBITDA</th><th>EBITDA Margin %</th><th>Scope</th></tr></thead>
+      <tbody>
+        <tr><td>2016</td><td>263</td><td>150</td><td>56.9%</td><td>122</td><td>46.5%</td><td>REI only</td></tr>
+        <tr><td>2017</td><td>833</td><td>212</td><td>25.5%</td><td>106</td><td>12.7%</td><td>REI only</td></tr>
+        <tr><td>2018</td><td>1,994</td><td>700</td><td>35.1%</td><td>546</td><td>27.4%</td><td>REI only</td></tr>
+        <tr><td>2019</td><td>3,182</td><td>1,019</td><td>32.0%</td><td>799</td><td>25.1%</td><td>REI only</td></tr>
+        <tr><td>2020</td><td>3,807</td><td>1,052</td><td>27.6%</td><td>817</td><td>21.5%</td><td>REI only</td></tr>
+        <tr><td>2021</td><td>5,630</td><td>1,943</td><td>34.5%</td><td>1,462</td><td>26.0%</td><td>REI only</td></tr>
+        <tr><td>2022</td><td>12,106</td><td>5,170</td><td>42.7%</td><td>3,894</td><td>32.2%</td><td>Combined</td></tr>
+        <tr><td>2023</td><td>20,737</td><td>10,594</td><td>51.1%</td><td>9,046</td><td>43.6%</td><td>Combined</td></tr>
+        <tr><td>2024</td><td>18,645</td><td>9,978</td><td>53.5%</td><td>8,067</td><td>43.3%</td><td>Combined</td></tr>
+        <tr><td>2025</td><td>19,410</td><td>9,389</td><td>48.4%</td><td>6,951</td><td>35.8%</td><td>Combined</td></tr>
+        <tr class="total"><td>TTM Mar 2026</td><td>19,735</td><td>9,921</td><td>50.3%</td><td>7,306</td><td>37.0%</td><td>Combined</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ COMMENTARY ============ -->
+<section class="section" id="commentary">
+  <h2 class="section-title"><span class="dot"></span>Management Commentary &amp; Board Takeaways</h2>
+  <div class="grid g-2">
+    <div class="card">
+      <h3 style="margin-bottom:10px">Customer Updates</h3>
+      <table class="fin">
+        <thead><tr><th>Account</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Tri-County (TCEC)</td><td>Attacher work paused pending payment of Joint-Use Audit violations. Mar '26 billings $1.3K.</td></tr>
+          <tr><td>Trinity Valley (TVEC)</td><td>Revenue +43% last quarter. Mar '26: $638K. Largest TTM customer at $3.98M.</td></tr>
+          <tr><td>Deep East (DETEC)</td><td>Revenue +19% last quarter. ~200 poles/week processed.</td></tr>
+          <tr><td>WFEC</td><td>Grew to #4 TTM at $1.09M — Substation Engineering Milestones driving the relationship.</td></tr>
+          <tr><td>Cherokee &amp; Rusk</td><td>Volume oscillates with permit/billing cadence; one-permit-at-a-time model to control budget.</td></tr>
+          <tr><td>Oncor / OG&amp;E / Vistra</td><td>New FY25 logos that have grown into Top-10 accounts; broadening the customer base.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:10px">Strategic Takeaways</h3>
+      <div class="commentary">
+        <h4>Revenue Diversification</h4>
+        <ul>
+          <li>Top 3 clients = 66.5% of TTM Mar-26 revenue (down from 71.1% in FY25) — diversification in progress.</li>
+          <li>WFEC grew to $1.09M TTM, now 6.0% of revenue; Oncor, OG&amp;E, and Vistra each established as recurring logos.</li>
+        </ul>
+      </div>
+      <div class="commentary" style="background:rgba(34,197,94,.08);border-left-color:#22c55e">
+        <h4 style="color:#22c55e">Service Transition</h4>
+        <ul>
+          <li>Core utility services (JU Permitting, Substation Engineering) rising in mix — now 49.5% of TTM revenue combined.</li>
+          <li>Torlan integration adding high-value Substation Engineering Milestones revenue ($1.6M TTM), lifting blended GP margin to 50.3%.</li>
+        </ul>
+      </div>
+      <div class="commentary" style="background:rgba(239,68,68,.08);border-left-color:#ef4444">
+        <h4 style="color:#ef4444">Watch Items</h4>
+        <ul>
+          <li>DSO elevated at 101 days — AR build tied to large invoices; collections improved $1.07M in March.</li>
+          <li>Mar '26 single-month revenue undershot budget $272K — project/permit timing, not a trend.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3 style="margin-bottom:10px">Key Metrics at a Glance</h3>
+    <div class="grid g-4">
+      <div><span class="pill">Mar '26</span><div style="margin-top:6px;font-size:12px"><strong>Revenue</strong><br/>$1.58M (+5.8% YoY)</div></div>
+      <div><span class="pill">Mar '26</span><div style="margin-top:6px;font-size:12px"><strong>PF Adj. EBITDA</strong><br/>$624K (39.4% margin)</div></div>
+      <div><span class="pill">Q1 '26</span><div style="margin-top:6px;font-size:12px"><strong>Revenue</strong><br/>$4.95M (+7.0% YoY)</div></div>
+      <div><span class="pill">Q1 '26</span><div style="margin-top:6px;font-size:12px"><strong>PF Adj. EBITDA</strong><br/>$1.94M (+22% YoY)</div></div>
+      <div><span class="pill gold">TTM Mar-26</span><div style="margin-top:6px;font-size:12px"><strong>Combined Revenue</strong><br/>$19.74M</div></div>
+      <div><span class="pill gold">TTM Mar-26</span><div style="margin-top:6px;font-size:12px"><strong>PF Adj. EBITDA Margin</strong><br/>37.0% (Combined)</div></div>
+      <div><span class="pill green">3/31/26</span><div style="margin-top:6px;font-size:12px"><strong>Total Assets</strong><br/>$38.20M</div></div>
+      <div><span class="pill green">3/31/26</span><div style="margin-top:6px;font-size:12px"><strong>Total Equity</strong><br/>$22.60M</div></div>
+      <div><span class="pill gray">3/31/26</span><div style="margin-top:6px;font-size:12px"><strong>Long-Term Debt</strong><br/>$13.0M (▼$2.0M in Q1)</div></div>
+      <div><span class="pill gray">3/31/26</span><div style="margin-top:6px;font-size:12px"><strong>Cash</strong><br/>$1.98M</div></div>
+    </div>
+  </div>
+</section>
+
+
 <section class="section" id="bs">
   <h2 class="section-title"><span class="dot"></span>Balance Sheet <small>(REI Utility Services, LLC · as of 3/31/26)</small></h2>
 
@@ -553,107 +653,6 @@
 
 <!-- ============ HISTORY ============ -->
 
-<section class="section" id="history">
-  <h2 class="section-title"><span class="dot"></span>Long-Term Financial Trend <small>(2016 – TTM Mar 2026 · Combined from 2022 per MRP)</small></h2>
-
-  <div class="grid g-3">
-    <div class="card">
-      <h3 style="margin-bottom:10px">Revenue ($000s)</h3>
-      <div class="chart-wrap"><canvas id="chartRev10y"></canvas></div>
-    </div>
-    <div class="card">
-      <h3 style="margin-bottom:10px">Gross Profit &amp; Margin</h3>
-      <div class="chart-wrap"><canvas id="chartGp10y"></canvas></div>
-    </div>
-    <div class="card">
-      <h3 style="margin-bottom:10px">PF Adj. EBITDA &amp; Margin</h3>
-      <div class="chart-wrap"><canvas id="chartEb10y"></canvas></div>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:14px">
-    <h3 style="margin-bottom:10px">Historical Snapshot ($000s)</h3>
-    <table class="fin">
-      <thead><tr><th>Year</th><th>Revenue</th><th>Gross Profit</th><th>GM %</th><th>PF Adj. EBITDA</th><th>EBITDA Margin %</th><th>Scope</th></tr></thead>
-      <tbody>
-        <tr><td>2016</td><td>263</td><td>150</td><td>56.9%</td><td>122</td><td>46.5%</td><td>REI only</td></tr>
-        <tr><td>2017</td><td>833</td><td>212</td><td>25.5%</td><td>106</td><td>12.7%</td><td>REI only</td></tr>
-        <tr><td>2018</td><td>1,994</td><td>700</td><td>35.1%</td><td>546</td><td>27.4%</td><td>REI only</td></tr>
-        <tr><td>2019</td><td>3,182</td><td>1,019</td><td>32.0%</td><td>799</td><td>25.1%</td><td>REI only</td></tr>
-        <tr><td>2020</td><td>3,807</td><td>1,052</td><td>27.6%</td><td>817</td><td>21.5%</td><td>REI only</td></tr>
-        <tr><td>2021</td><td>5,630</td><td>1,943</td><td>34.5%</td><td>1,462</td><td>26.0%</td><td>REI only</td></tr>
-        <tr><td>2022</td><td>12,106</td><td>5,170</td><td>42.7%</td><td>3,894</td><td>32.2%</td><td>Combined</td></tr>
-        <tr><td>2023</td><td>20,737</td><td>10,594</td><td>51.1%</td><td>9,046</td><td>43.6%</td><td>Combined</td></tr>
-        <tr><td>2024</td><td>18,645</td><td>9,978</td><td>53.5%</td><td>8,067</td><td>43.3%</td><td>Combined</td></tr>
-        <tr><td>2025</td><td>19,410</td><td>9,389</td><td>48.4%</td><td>6,951</td><td>35.8%</td><td>Combined</td></tr>
-        <tr class="total"><td>TTM Mar 2026</td><td>19,735</td><td>9,921</td><td>50.3%</td><td>7,306</td><td>37.0%</td><td>Combined</td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<!-- ============ COMMENTARY ============ -->
-<section class="section" id="commentary">
-  <h2 class="section-title"><span class="dot"></span>Management Commentary &amp; Board Takeaways</h2>
-  <div class="grid g-2">
-    <div class="card">
-      <h3 style="margin-bottom:10px">Customer &amp; Vendor Updates</h3>
-      <table class="fin">
-        <thead><tr><th>Account</th><th>Status</th></tr></thead>
-        <tbody>
-          <tr><td>Tri-County (TCEC)</td><td>Attacher work paused pending payment of Joint-Use Audit violations. Mar '26 billings $1.3K.</td></tr>
-          <tr><td>Trinity Valley (TVEC)</td><td>Revenue +43% last quarter. Mar '26: $638K. Largest TTM customer at $3.98M.</td></tr>
-          <tr><td>Deep East (DETEC)</td><td>Revenue +19% last quarter. ~200 poles/week processed.</td></tr>
-          <tr><td>WFEC</td><td>Grew to #4 TTM at $1.09M — Substation Engineering Milestones driving the relationship.</td></tr>
-          <tr><td>Cherokee &amp; Rusk</td><td>Volume oscillates with permit/billing cadence; one-permit-at-a-time model to control budget.</td></tr>
-          <tr><td>Oncor / OG&amp;E / Vistra</td><td>New FY25 logos that have grown into Top-10 accounts; broadening the customer base.</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="card">
-      <h3 style="margin-bottom:10px">Strategic Takeaways</h3>
-      <div class="commentary">
-        <h4>Revenue Diversification</h4>
-        <ul>
-          <li>Top 3 clients = 66.5% of TTM Mar-26 revenue (down from 71.1% in FY25) — diversification in progress.</li>
-          <li>WFEC grew to $1.09M TTM, now 6.0% of revenue; Oncor, OG&amp;E, and Vistra each established as recurring logos.</li>
-        </ul>
-      </div>
-      <div class="commentary" style="background:rgba(34,197,94,.08);border-left-color:#22c55e">
-        <h4 style="color:#22c55e">Service Transition</h4>
-        <ul>
-          <li>Core utility services (JU Permitting, Substation Engineering) rising in mix — now 49.5% of TTM revenue combined.</li>
-          <li>Torlan integration adding high-value Substation Engineering Milestones revenue ($1.6M TTM), lifting blended GP margin to 50.3%.</li>
-        </ul>
-      </div>
-      <div class="commentary" style="background:rgba(239,68,68,.08);border-left-color:#ef4444">
-        <h4 style="color:#ef4444">Watch Items</h4>
-        <ul>
-          <li>DSO elevated at 101 days — AR build tied to large invoices; collections improved $1.07M in March.</li>
-          <li>Mar '26 single-month revenue undershot budget $272K — project/permit timing, not a trend.</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:14px">
-    <h3 style="margin-bottom:10px">Key Metrics at a Glance</h3>
-    <div class="grid g-4">
-      <div><span class="pill">Mar '26</span><div style="margin-top:6px;font-size:12px"><strong>Revenue</strong><br/>$1.58M (+5.8% YoY)</div></div>
-      <div><span class="pill">Mar '26</span><div style="margin-top:6px;font-size:12px"><strong>PF Adj. EBITDA</strong><br/>$624K (39.4% margin)</div></div>
-      <div><span class="pill">Q1 '26</span><div style="margin-top:6px;font-size:12px"><strong>Revenue</strong><br/>$4.95M (+7.0% YoY)</div></div>
-      <div><span class="pill">Q1 '26</span><div style="margin-top:6px;font-size:12px"><strong>PF Adj. EBITDA</strong><br/>$1.94M (+22% YoY)</div></div>
-      <div><span class="pill gold">TTM Mar-26</span><div style="margin-top:6px;font-size:12px"><strong>Combined Revenue</strong><br/>$19.74M</div></div>
-      <div><span class="pill gold">TTM Mar-26</span><div style="margin-top:6px;font-size:12px"><strong>PF Adj. EBITDA Margin</strong><br/>37.0% (Combined)</div></div>
-      <div><span class="pill green">3/31/26</span><div style="margin-top:6px;font-size:12px"><strong>Total Assets</strong><br/>$38.20M</div></div>
-      <div><span class="pill green">3/31/26</span><div style="margin-top:6px;font-size:12px"><strong>Total Equity</strong><br/>$22.60M</div></div>
-      <div><span class="pill gray">3/31/26</span><div style="margin-top:6px;font-size:12px"><strong>Long-Term Debt</strong><br/>$13.0M (▼$2.0M in Q1)</div></div>
-      <div><span class="pill gray">3/31/26</span><div style="margin-top:6px;font-size:12px"><strong>Cash</strong><br/>$1.98M</div></div>
-    </div>
-  </div>
-</section>
-
-
 
 
 <!-- ============ SNAPSHOT & INITIATIVES ============ -->
@@ -797,39 +796,37 @@
   </div>
 
   <!-- ArcGIS Map -->
-  <div class="narr">
+  <div class="narr" style="margin-bottom:14px">
     <h3><span class="ic"></span>Coverage Map</h3>
     <iframe src="https://experience.arcgis.com/experience/8a8d5ffceba64b97a3ef0794a709defa" width="100%" height="600px" frameborder="0" style="border:1px solid var(--line);border-radius:8px;" allowfullscreen></iframe>
   </div>
-</section>
 
-<!-- ============ BACKLOG & FORECAST ============ -->
-<section class="section" id="pipeline">
-  <h2 class="section-title"><span class="dot"></span>Backlog &amp; Forecast</h2>
-
-  <div class="grid g-2" style="margin-bottom:14px">
-    <div class="card k" id="kpi-backlog">
-      <h3>Total Backlog <small style="font-weight:400;text-transform:none;letter-spacing:0">(Secured Work &mdash; Remaining Backlog)</small></h3>
-      <div class="val" id="backlog-val"><span class="loader"></span></div>
-      <div class="kpi-inline" id="backlog-meta">Loading from Monday.com&hellip;</div>
+  <!-- Backlog & Forecast (moved from standalone tab) -->
+  <div class="narr">
+    <h3><span class="ic"></span>Backlog &amp; Forecast</h3>
+    <div class="grid g-2" style="margin-top:12px">
+      <div class="card k" id="kpi-backlog">
+        <h3>Total Backlog <small style="font-weight:400;text-transform:none;letter-spacing:0">(Secured Work &mdash; Remaining Backlog)</small></h3>
+        <div class="val" id="backlog-val"><span class="loader"></span></div>
+        <div class="kpi-inline" id="backlog-meta">Loading from Monday.com&hellip;</div>
+      </div>
+      <div class="card k" id="kpi-forecast">
+        <h3>Total Forecast <small style="font-weight:400;text-transform:none;letter-spacing:0">(Weighted Probability &mdash; Mirrored Backlog)</small></h3>
+        <div class="val" id="forecast-val"><span class="loader"></span></div>
+        <div class="kpi-inline" id="forecast-meta">Loading from Monday.com&hellip;</div>
+      </div>
     </div>
-    <div class="card k" id="kpi-forecast">
-      <h3>Total Forecast <small style="font-weight:400;text-transform:none;letter-spacing:0">(Weighted Probability &mdash; Mirrored Backlog)</small></h3>
-      <div class="val" id="forecast-val"><span class="loader"></span></div>
-      <div class="kpi-inline" id="forecast-meta">Loading from Monday.com&hellip;</div>
-    </div>
-  </div>
-
-  <div style="margin-bottom:14px;display:none" id="backlog-breakdown">
-    <div class="narr" id="backlog-svc-wrap" style="margin-bottom:14px">
-      <h3><span class="ic"></span>Backlog by Service Line</h3>
-      <div id="backlog-svc"></div>
-      <div class="client-legend" id="backlog-legend"></div>
-    </div>
-    <div class="narr" id="forecast-svc-wrap">
-      <h3><span class="ic"></span>Forecast by Service Line</h3>
-      <div id="forecast-svc"></div>
-      <div class="client-legend" id="forecast-legend"></div>
+    <div style="margin-top:14px;display:none" id="backlog-breakdown">
+      <div id="backlog-svc-wrap" style="margin-bottom:14px">
+        <h4>Backlog by Service Line</h4>
+        <div id="backlog-svc"></div>
+        <div class="client-legend" id="backlog-legend"></div>
+      </div>
+      <div id="forecast-svc-wrap">
+        <h4>Forecast by Service Line</h4>
+        <div id="forecast-svc"></div>
+        <div class="client-legend" id="forecast-legend"></div>
+      </div>
     </div>
   </div>
 </section>
