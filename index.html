@@ -181,7 +181,8 @@
   .snap-dir{display:inline-block;font-size:14px;font-weight:700;margin-left:4px}
   .snap-dir.up{color:var(--good)}
   .snap-dir.down{color:var(--bad)}
-  #client-tooltip{display:none;position:fixed;background:#1a1a1e;color:#fff;border:1px solid var(--line);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;pointer-events:none;z-index:100;white-space:nowrap;transform:translateX(-50%);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+  #client-tooltip{display:none;position:fixed;background:#1a1a1e;color:#fff;border:1px solid var(--line);padding:6px 10px;border-radius:4px;font-size:11px;font-weight:600;pointer-events:none;z-index:100;max-width:320px;line-height:1.45;transform:translateX(-50%);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+  #client-tooltip strong{font-weight:700;color:#fff}
   /* Pipeline Funnel (weighted backlog & forecast) */
   :root{
     --st-legal:#22c55e;--st-proposal:#f59e0b;--st-negotiation:#3b82f6;--st-discovery:#8b8b93;
@@ -205,12 +206,17 @@
   .stage-pill.discovery{background:rgba(139,139,147,.15);border-color:rgba(139,139,147,.4);color:var(--st-discovery)}
   .stage-pill.discovery .dot{background:var(--st-discovery)}
   .funnel-bar{position:relative;height:14px;width:100%;min-width:90px}
-  .funnel-bar .gross{position:absolute;left:0;top:0;height:14px;background:transparent;border:1px solid var(--line);border-radius:4px}
-  .funnel-bar .weighted{position:absolute;left:0;top:0;height:14px;border-radius:4px}
+  .funnel-bar .gross{position:absolute;left:0;top:0;height:14px;background:transparent;border:1px solid var(--line);border-radius:4px;pointer-events:none}
+  .funnel-bar .weighted{position:absolute;left:0;top:0;height:14px;border-radius:4px;display:flex;overflow:hidden}
   .funnel-bar.legal .weighted{background:var(--st-legal)}
   .funnel-bar.proposal .weighted{background:var(--st-proposal)}
   .funnel-bar.negotiation .weighted{background:var(--st-negotiation)}
   .funnel-bar.discovery .weighted{background:var(--st-discovery)}
+  .funnel-bar .funnel-seg{display:inline-block;height:100%;cursor:pointer;transition:opacity .15s}
+  .funnel-bar .funnel-seg:first-child{border-radius:4px 0 0 4px}
+  .funnel-bar .funnel-seg:last-child{border-radius:0 4px 4px 0}
+  .funnel-bar .funnel-seg:only-child{border-radius:4px}
+  .funnel-bar .funnel-seg:hover{opacity:.7}
   .recon-card{background:linear-gradient(180deg,rgba(34,197,94,.04) 0%,rgba(34,197,94,.0) 100%);border:1px solid rgba(34,197,94,.25);border-radius:8px;padding:14px 16px;margin-top:14px}
   .recon-card h4{margin:0 0 8px 0;font-size:11px;color:var(--good);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
   .recon-card h4::before{content:"";display:inline-block;width:8px;height:8px;background:var(--good);border-radius:50%}
@@ -220,8 +226,6 @@
   .recon-row.total{border-top:1px dashed var(--line);margin-top:6px;padding-top:10px;font-size:15px}
   .recon-row.total .lbl{color:#fff;font-weight:700;text-transform:uppercase;letter-spacing:.4px;font-size:12px}
   .recon-row.total .val{color:var(--good);font-size:18px}
-  .funnel-foot{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:11px;color:var(--muted)}
-  .funnel-foot .sep{color:var(--line)}
   .funnel-legend{display:inline-flex;align-items:center;gap:14px;font-size:11px;color:var(--muted);margin-top:8px}
   .funnel-legend .lg-swatch{display:inline-flex;align-items:center;gap:5px}
   .funnel-legend .sw{width:18px;height:10px;border-radius:3px;display:inline-block}
@@ -890,6 +894,7 @@
         <span class="lg-swatch"><span class="sw gross"></span>Gross</span>
         <span class="lg-swatch"><span class="sw weighted"></span>Weighted</span>
       </div>
+      <div class="client-legend" id="funnel-clients" style="margin-top:10px"></div>
 
       <!-- Reconciliation card (Backlog + Weighted = Risk-Adjusted Outlook) -->
       <div class="recon-card">
@@ -912,9 +917,6 @@
         <div id="forecast-svc"></div>
         <div class="client-legend" id="forecast-legend"></div>
       </div>
-
-      <!-- Excluded items footnote -->
-      <div class="funnel-foot" id="funnel-excluded"></div>
     </div>
   </div>
 </section>
@@ -1497,21 +1499,43 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
     });
   }
 
-  function renderFunnel(byStatus,maxGross){
+  function renderFunnel(byStatus,maxGross,legendContainer){
     var body=document.getElementById('funnel-body');
     if(!body||!byStatus) return;
     var rows='';
     var totals={jobs:0,gross:0,weighted:0};
+    var allClients={};
+
     // Sort incoming statuses to the requested display order
     var ordered=STATUS_ORDER.map(function(name){
-      return byStatus.find(function(s){return s.status===name})||{status:name,weight:0,jobs:0,gross:0,weighted:0};
+      return byStatus.find(function(s){return s.status===name})||{status:name,weight:0,jobs:0,gross:0,weighted:0,clients:[]};
     });
+
     for(var i=0;i<ordered.length;i++){
       var s=ordered[i];
       var cls=STATUS_CLASS[s.status]||'discovery';
       var grossPct=maxGross>0?(s.gross/maxGross*100):0;
       var weightedPct=maxGross>0?(s.weighted/maxGross*100):0;
       totals.jobs+=s.jobs;totals.gross+=s.gross;totals.weighted+=s.weighted;
+
+      // Per-client segments inside the weighted track. The proxy returns
+      // client.amount as GROSS dollars; multiply by weight for the weighted
+      // figure shown in the tooltip.
+      var segs='';
+      if(s.clients&&s.clients.length){
+        for(var j=0;j<s.clients.length;j++){
+          var c=s.clients[j];
+          var cPct=s.gross>0?(c.amount/s.gross*100):0;
+          var color=getClientColor(c.name);
+          allClients[c.name]=color;
+          var weightedAmt=c.amount*s.weight;
+          segs+='<span class="funnel-seg" style="width:'+cPct.toFixed(2)+'%;background:'+color+'"'
+            +' data-client="'+c.name.replace(/"/g,'&quot;')+'"'
+            +' data-status="'+s.status+'"'
+            +' data-amount="'+fmt(weightedAmt)+' weighted ('+fmt(c.amount)+' gross)"></span>';
+        }
+      }
+
       rows+='<tr>'
         +'<td><span class="stage-pill '+cls+'"><span class="dot"></span>'+s.status+'</span></td>'
         +'<td class="num">'+s.jobs.toLocaleString()+'</td>'
@@ -1520,7 +1544,7 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
         +'<td class="num weighted">'+fmt(s.weighted)+'</td>'
         +'<td><div class="funnel-bar '+cls+'">'
         +'<div class="gross" style="width:'+grossPct.toFixed(2)+'%"></div>'
-        +'<div class="weighted" style="width:'+weightedPct.toFixed(2)+'%"></div>'
+        +'<div class="weighted" style="width:'+weightedPct.toFixed(2)+'%">'+segs+'</div>'
         +'</div></td>'
         +'</tr>';
     }
@@ -1533,26 +1557,31 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
       +'<td></td>'
       +'</tr>';
     body.innerHTML=rows;
-  }
 
-  function renderExcluded(excluded){
-    var el=document.getElementById('funnel-excluded');
-    if(!el||!excluded) return;
-    var parts=[];
-    if(excluded.won&&excluded.won.count>0){
-      parts.push('<span><strong>'+excluded.won.count+' Won</strong> ('+fmt(excluded.won.total)+') &rarr; rolls into backlog</span>');
+    // Client legend below the funnel
+    if(legendContainer){
+      var legHtml='';
+      var entries=Object.keys(allClients);
+      for(var k=0;k<entries.length;k++){
+        legHtml+='<span class="client-leg"><span class="client-dot" style="background:'+allClients[entries[k]]+'"></span>'+entries[k]+'</span>';
+      }
+      legendContainer.innerHTML=legHtml;
     }
-    if(excluded.lost&&excluded.lost.count>0){
-      parts.push('<span><strong>'+excluded.lost.count+' Lost</strong> ('+fmt(excluded.lost.total)+') excluded</span>');
-    }
-    if(excluded.unstatused&&excluded.unstatused.count>0){
-      parts.push('<span><strong>'+excluded.unstatused.count+' un-statused</strong> ('+fmt(excluded.unstatused.total)+') &mdash; needs Status set in Monday</span>');
-    }
-    if(excluded.other&&excluded.other.count>0){
-      var labels=Object.keys(excluded.other.statuses||{}).join(', ');
-      parts.push('<span><strong>'+excluded.other.count+' other</strong> ('+fmt(excluded.other.total)+(labels?': '+labels:'')+')</span>');
-    }
-    el.innerHTML=parts.length?parts.join('<span class="sep">|</span>'):'';
+
+    // Tooltip wiring (reuses the shared #client-tooltip element)
+    body.querySelectorAll('.funnel-seg').forEach(function(seg){
+      seg.addEventListener('mouseenter',function(){
+        var tip=document.getElementById('client-tooltip');
+        tip.innerHTML='<strong>'+seg.getAttribute('data-client')+'</strong> &middot; '+seg.getAttribute('data-status')+'<br>'+seg.getAttribute('data-amount');
+        tip.style.display='block';
+        var r=seg.getBoundingClientRect();
+        tip.style.left=(r.left+r.width/2)+'px';
+        tip.style.top=(r.top-44)+'px';
+      });
+      seg.addEventListener('mouseleave',function(){
+        document.getElementById('client-tooltip').style.display='none';
+      });
+    });
   }
 
   fetch(PROXY).then(function(r){return r.json()}).then(function(d){
@@ -1583,8 +1612,7 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
       document.getElementById('funnel-wrap').style.display='';
       var maxGross=0;
       for(var i=0;i<byStatus.length;i++){ if(byStatus[i].gross>maxGross) maxGross=byStatus[i].gross; }
-      renderFunnel(byStatus,maxGross);
-      renderExcluded(forecast.excluded);
+      renderFunnel(byStatus,maxGross,document.getElementById('funnel-clients'));
 
       var bLines=bSvc.map(function(s){return {name:s.group,val:s.total,clients:s.clients||[]}});
       var fLines=fSvc.map(function(s){return {name:s.group,val:s.total,clients:s.clients||[]}});
