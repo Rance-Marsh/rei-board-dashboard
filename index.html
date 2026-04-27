@@ -187,7 +187,7 @@
   :root{
     --st-legal:#22c55e;--st-proposal:#f59e0b;--st-negotiation:#3b82f6;--st-discovery:#8b8b93;
   }
-  .funnel-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+  .funnel-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;margin-top:10px}
   .funnel-table th,.funnel-table td{padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink);vertical-align:middle}
   .funnel-table thead th{background:var(--soft);color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.5px;font-weight:600;text-align:right}
   .funnel-table thead th:first-child{text-align:left}
@@ -195,6 +195,7 @@
   .funnel-table td.weighted{font-weight:700;color:#fff}
   .funnel-table tr.total td{background:rgba(255,255,255,.04);font-weight:700;border-top:2px solid var(--line);border-bottom:none}
   .funnel-table tr.total td.weighted{color:#fff;font-size:13px}
+  .funnel-table th.funnel-col,.funnel-table td.funnel-col{padding-left:14px;padding-right:6px;width:auto}
   .stage-pill{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.2px;border:1px solid transparent}
   .stage-pill .dot{width:8px;height:8px;border-radius:50%}
   .stage-pill.legal{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.35);color:var(--st-legal)}
@@ -205,9 +206,9 @@
   .stage-pill.negotiation .dot{background:var(--st-negotiation)}
   .stage-pill.discovery{background:rgba(139,139,147,.15);border-color:rgba(139,139,147,.4);color:var(--st-discovery)}
   .stage-pill.discovery .dot{background:var(--st-discovery)}
-  .funnel-bar{position:relative;height:14px;width:100%;min-width:90px}
-  .funnel-bar .gross{position:absolute;left:0;top:0;height:14px;background:transparent;border:1px solid var(--line);border-radius:4px;pointer-events:none}
-  .funnel-bar .weighted{position:absolute;left:0;top:0;height:14px;border-radius:4px;display:flex;overflow:hidden}
+  .funnel-bar{position:relative;height:18px;width:100%;min-width:90px}
+  .funnel-bar .gross{position:absolute;left:0;top:0;height:18px;background:transparent;border:1px solid var(--line);border-radius:4px;pointer-events:none}
+  .funnel-bar .weighted{position:absolute;left:0;top:0;height:18px;border-radius:4px;display:flex;overflow:hidden}
   .funnel-bar.legal .weighted{background:var(--st-legal)}
   .funnel-bar.proposal .weighted{background:var(--st-proposal)}
   .funnel-bar.negotiation .weighted{background:var(--st-negotiation)}
@@ -880,12 +881,12 @@
       <table class="funnel-table">
         <thead>
           <tr>
-            <th style="width:160px">Status</th>
-            <th style="width:60px">Jobs</th>
-            <th style="width:130px">Gross $</th>
-            <th style="width:80px">Weight</th>
-            <th style="width:130px">Weighted $</th>
-            <th>Funnel</th>
+            <th style="width:140px">Status</th>
+            <th style="width:55px">Jobs</th>
+            <th style="width:110px">Gross $</th>
+            <th style="width:65px">Weight</th>
+            <th style="width:120px">Weighted $</th>
+            <th class="funnel-col">Funnel</th>
           </tr>
         </thead>
         <tbody id="funnel-body"></tbody>
@@ -1542,7 +1543,7 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
         +'<td class="num">'+fmt(s.gross)+'</td>'
         +'<td class="num">'+Math.round(s.weight*100)+'%</td>'
         +'<td class="num weighted">'+fmt(s.weighted)+'</td>'
-        +'<td><div class="funnel-bar '+cls+'">'
+        +'<td class="funnel-col"><div class="funnel-bar '+cls+'">'
         +'<div class="gross" style="width:'+grossPct.toFixed(2)+'%"></div>'
         +'<div class="weighted" style="width:'+weightedPct.toFixed(2)+'%">'+segs+'</div>'
         +'</div></td>'
@@ -1554,7 +1555,7 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
       +'<td class="num">'+fmt(totals.gross)+'</td>'
       +'<td class="num">'+(totals.gross>0?Math.round(totals.weighted/totals.gross*100):0)+'%</td>'
       +'<td class="num weighted">'+fmt(totals.weighted)+'</td>'
-      +'<td></td>'
+      +'<td class="funnel-col"></td>'
       +'</tr>';
     body.innerHTML=rows;
 
