@@ -182,6 +182,51 @@
   .snap-dir.up{color:var(--good)}
   .snap-dir.down{color:var(--bad)}
   #client-tooltip{display:none;position:fixed;background:#1a1a1e;color:#fff;border:1px solid var(--line);padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;pointer-events:none;z-index:100;white-space:nowrap;transform:translateX(-50%);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+  /* Pipeline Funnel (weighted backlog & forecast) */
+  :root{
+    --st-legal:#22c55e;--st-proposal:#f59e0b;--st-negotiation:#3b82f6;--st-discovery:#8b8b93;
+  }
+  .funnel-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+  .funnel-table th,.funnel-table td{padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink);vertical-align:middle}
+  .funnel-table thead th{background:var(--soft);color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.5px;font-weight:600;text-align:right}
+  .funnel-table thead th:first-child{text-align:left}
+  .funnel-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .funnel-table td.weighted{font-weight:700;color:#fff}
+  .funnel-table tr.total td{background:rgba(255,255,255,.04);font-weight:700;border-top:2px solid var(--line);border-bottom:none}
+  .funnel-table tr.total td.weighted{color:#fff;font-size:13px}
+  .stage-pill{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.2px;border:1px solid transparent}
+  .stage-pill .dot{width:8px;height:8px;border-radius:50%}
+  .stage-pill.legal{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.35);color:var(--st-legal)}
+  .stage-pill.legal .dot{background:var(--st-legal)}
+  .stage-pill.proposal{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35);color:var(--st-proposal)}
+  .stage-pill.proposal .dot{background:var(--st-proposal)}
+  .stage-pill.negotiation{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.35);color:var(--st-negotiation)}
+  .stage-pill.negotiation .dot{background:var(--st-negotiation)}
+  .stage-pill.discovery{background:rgba(139,139,147,.15);border-color:rgba(139,139,147,.4);color:var(--st-discovery)}
+  .stage-pill.discovery .dot{background:var(--st-discovery)}
+  .funnel-bar{position:relative;height:14px;width:100%;min-width:90px}
+  .funnel-bar .gross{position:absolute;left:0;top:0;height:14px;background:transparent;border:1px solid var(--line);border-radius:4px}
+  .funnel-bar .weighted{position:absolute;left:0;top:0;height:14px;border-radius:4px}
+  .funnel-bar.legal .weighted{background:var(--st-legal)}
+  .funnel-bar.proposal .weighted{background:var(--st-proposal)}
+  .funnel-bar.negotiation .weighted{background:var(--st-negotiation)}
+  .funnel-bar.discovery .weighted{background:var(--st-discovery)}
+  .recon-card{background:linear-gradient(180deg,rgba(34,197,94,.04) 0%,rgba(34,197,94,.0) 100%);border:1px solid rgba(34,197,94,.25);border-radius:8px;padding:14px 16px;margin-top:14px}
+  .recon-card h4{margin:0 0 8px 0;font-size:11px;color:var(--good);text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
+  .recon-card h4::before{content:"";display:inline-block;width:8px;height:8px;background:var(--good);border-radius:50%}
+  .recon-row{display:flex;align-items:baseline;justify-content:space-between;padding:5px 0;font-size:13px}
+  .recon-row .lbl{color:var(--muted)}
+  .recon-row .val{font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+  .recon-row.total{border-top:1px dashed var(--line);margin-top:6px;padding-top:10px;font-size:15px}
+  .recon-row.total .lbl{color:#fff;font-weight:700;text-transform:uppercase;letter-spacing:.4px;font-size:12px}
+  .recon-row.total .val{color:var(--good);font-size:18px}
+  .funnel-foot{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:11px;color:var(--muted)}
+  .funnel-foot .sep{color:var(--line)}
+  .funnel-legend{display:inline-flex;align-items:center;gap:14px;font-size:11px;color:var(--muted);margin-top:8px}
+  .funnel-legend .lg-swatch{display:inline-flex;align-items:center;gap:5px}
+  .funnel-legend .sw{width:18px;height:10px;border-radius:3px;display:inline-block}
+  .funnel-legend .sw.gross{background:transparent;border:1px solid var(--line)}
+  .funnel-legend .sw.weighted{background:var(--muted)}
 </style>
 </head>
 <body>
@@ -801,32 +846,75 @@
     <iframe src="https://experience.arcgis.com/experience/8a8d5ffceba64b97a3ef0794a709defa" width="100%" height="600px" frameborder="0" style="border:1px solid var(--line);border-radius:8px;" allowfullscreen></iframe>
   </div>
 
-  <!-- Backlog & Forecast (moved from standalone tab) -->
+  <!-- Backlog & Forecast (weighted view — replaces former standalone tab) -->
   <div class="narr">
-    <h3><span class="ic"></span>Backlog &amp; Forecast</h3>
-    <div class="grid g-2" style="margin-top:12px">
+    <h3><span class="ic"></span>Backlog &amp; Weighted Forecast</h3>
+
+    <!-- Headline KPI strip (3 cards: Backlog · Weighted Forecast · Gross Pipeline) -->
+    <div class="grid g-3" style="margin-top:12px">
       <div class="card k" id="kpi-backlog">
-        <h3>Total Backlog <small style="font-weight:400;text-transform:none;letter-spacing:0">(Secured Work &mdash; Remaining Backlog)</small></h3>
+        <h3>Backlog (Won) <small style="font-weight:400;text-transform:none;letter-spacing:0">Secured work executing</small></h3>
         <div class="val" id="backlog-val"><span class="loader"></span></div>
         <div class="kpi-inline" id="backlog-meta">Loading from Monday.com&hellip;</div>
       </div>
-      <div class="card k" id="kpi-forecast">
-        <h3>Total Forecast <small style="font-weight:400;text-transform:none;letter-spacing:0">(Weighted Probability &mdash; Mirrored Backlog)</small></h3>
-        <div class="val" id="forecast-val"><span class="loader"></span></div>
+      <div class="card k" id="kpi-forecast" style="border-top-color:var(--good)">
+        <h3>Weighted Forecast <small style="font-weight:400;text-transform:none;letter-spacing:0">Probability-adjusted pipeline</small></h3>
+        <div class="val" id="forecast-val" style="color:var(--good)"><span class="loader"></span></div>
         <div class="kpi-inline" id="forecast-meta">Loading from Monday.com&hellip;</div>
       </div>
+      <div class="card k" id="kpi-gross" style="border-top-color:var(--muted)">
+        <h3>Gross Pipeline <small style="font-weight:400;text-transform:none;letter-spacing:0">Sum of all open stages</small></h3>
+        <div class="val" id="gross-val" style="color:var(--ink)"><span class="loader"></span></div>
+        <div class="kpi-inline" id="gross-meta">&nbsp;</div>
+      </div>
     </div>
-    <div style="margin-top:14px;display:none" id="backlog-breakdown">
-      <div id="backlog-svc-wrap" style="margin-bottom:14px">
+
+    <!-- Pipeline Funnel by Status (Legal · Proposal · Negotiation · Discovery) -->
+    <div style="margin-top:18px;display:none" id="funnel-wrap">
+      <h4 style="margin-bottom:4px">Pipeline Funnel by Status</h4>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Outlined bar = gross opportunity &middot; solid fill = probability-weighted value</div>
+      <table class="funnel-table">
+        <thead>
+          <tr>
+            <th style="width:160px">Status</th>
+            <th style="width:60px">Jobs</th>
+            <th style="width:130px">Gross $</th>
+            <th style="width:80px">Weight</th>
+            <th style="width:130px">Weighted $</th>
+            <th>Funnel</th>
+          </tr>
+        </thead>
+        <tbody id="funnel-body"></tbody>
+      </table>
+      <div class="funnel-legend">
+        <span class="lg-swatch"><span class="sw gross"></span>Gross</span>
+        <span class="lg-swatch"><span class="sw weighted"></span>Weighted</span>
+      </div>
+
+      <!-- Reconciliation card (Backlog + Weighted = Risk-Adjusted Outlook) -->
+      <div class="recon-card">
+        <h4>Risk-Adjusted Revenue Outlook</h4>
+        <div class="recon-row"><span class="lbl">Weighted Forecast (open stages)</span><span class="val" id="recon-forecast">--</span></div>
+        <div class="recon-row"><span class="lbl">Backlog (Won &mdash; already executing)</span><span class="val" id="recon-backlog">--</span></div>
+        <div class="recon-row total"><span class="lbl">Risk-Adjusted Outlook</span><span class="val" id="recon-total">--</span></div>
+      </div>
+
+      <!-- Backlog by Service Line -->
+      <div style="margin-top:18px">
         <h4>Backlog by Service Line</h4>
         <div id="backlog-svc"></div>
         <div class="client-legend" id="backlog-legend"></div>
       </div>
-      <div id="forecast-svc-wrap">
-        <h4>Forecast by Service Line</h4>
+
+      <!-- Forecast by Service Line (weighted) -->
+      <div style="margin-top:14px">
+        <h4>Open Pipeline by Service Line <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;font-size:11px">(Weighted)</small></h4>
         <div id="forecast-svc"></div>
         <div class="client-legend" id="forecast-legend"></div>
       </div>
+
+      <!-- Excluded items footnote -->
+      <div class="funnel-foot" id="funnel-excluded"></div>
     </div>
   </div>
 </section>
@@ -1335,14 +1423,23 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
     scales:{x:{stacked:true},y:{stacked:true,ticks:{callback:v=>'$'+(v/1e3).toFixed(0)+'M'}},y1:{position:'right',min:0,max:100,ticks:{callback:v=>v+'%'},grid:{drawOnChartArea:false}}}}});
 
 
-// Monday.com Backlog & Forecast live data
+// Monday.com Backlog & Weighted Forecast live data
 (function(){
   var PROXY='https://backlog-proxy.vercel.app/api/backlog';
   var CLIENT_COLORS=['#C8102E','#3b82f6','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#a855f7','#ef4444','#6366f1','#84cc16','#e879f9','#fb923c','#2dd4bf','#818cf8','#fbbf24','#f472b6','#34d399'];
   var clientColorMap={};
   var colorIdx=0;
 
-  function fmt(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+  // Display order requested by the business: Legal -> Proposal -> Negotiation -> Discovery
+  var STATUS_ORDER=['Legal','Proposal','Negotiation','Discovery'];
+  var STATUS_CLASS={Legal:'legal',Proposal:'proposal',Negotiation:'negotiation',Discovery:'discovery'};
+
+  function fmt(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
+  function fmtCompact(n){
+    if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M';
+    if(n>=1e3) return '$'+Math.round(n/1e3).toLocaleString()+'K';
+    return '$'+Math.round(n).toLocaleString();
+  }
 
   function getClientColor(name){
     if(!clientColorMap[name]){
@@ -1400,17 +1497,95 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
     });
   }
 
+  function renderFunnel(byStatus,maxGross){
+    var body=document.getElementById('funnel-body');
+    if(!body||!byStatus) return;
+    var rows='';
+    var totals={jobs:0,gross:0,weighted:0};
+    // Sort incoming statuses to the requested display order
+    var ordered=STATUS_ORDER.map(function(name){
+      return byStatus.find(function(s){return s.status===name})||{status:name,weight:0,jobs:0,gross:0,weighted:0};
+    });
+    for(var i=0;i<ordered.length;i++){
+      var s=ordered[i];
+      var cls=STATUS_CLASS[s.status]||'discovery';
+      var grossPct=maxGross>0?(s.gross/maxGross*100):0;
+      var weightedPct=maxGross>0?(s.weighted/maxGross*100):0;
+      totals.jobs+=s.jobs;totals.gross+=s.gross;totals.weighted+=s.weighted;
+      rows+='<tr>'
+        +'<td><span class="stage-pill '+cls+'"><span class="dot"></span>'+s.status+'</span></td>'
+        +'<td class="num">'+s.jobs.toLocaleString()+'</td>'
+        +'<td class="num">'+fmt(s.gross)+'</td>'
+        +'<td class="num">'+Math.round(s.weight*100)+'%</td>'
+        +'<td class="num weighted">'+fmt(s.weighted)+'</td>'
+        +'<td><div class="funnel-bar '+cls+'">'
+        +'<div class="gross" style="width:'+grossPct.toFixed(2)+'%"></div>'
+        +'<div class="weighted" style="width:'+weightedPct.toFixed(2)+'%"></div>'
+        +'</div></td>'
+        +'</tr>';
+    }
+    rows+='<tr class="total">'
+      +'<td>Total Open Pipeline</td>'
+      +'<td class="num">'+totals.jobs.toLocaleString()+'</td>'
+      +'<td class="num">'+fmt(totals.gross)+'</td>'
+      +'<td class="num">'+(totals.gross>0?Math.round(totals.weighted/totals.gross*100):0)+'%</td>'
+      +'<td class="num weighted">'+fmt(totals.weighted)+'</td>'
+      +'<td></td>'
+      +'</tr>';
+    body.innerHTML=rows;
+  }
+
+  function renderExcluded(excluded){
+    var el=document.getElementById('funnel-excluded');
+    if(!el||!excluded) return;
+    var parts=[];
+    if(excluded.won&&excluded.won.count>0){
+      parts.push('<span><strong>'+excluded.won.count+' Won</strong> ('+fmt(excluded.won.total)+') &rarr; rolls into backlog</span>');
+    }
+    if(excluded.lost&&excluded.lost.count>0){
+      parts.push('<span><strong>'+excluded.lost.count+' Lost</strong> ('+fmt(excluded.lost.total)+') excluded</span>');
+    }
+    if(excluded.unstatused&&excluded.unstatused.count>0){
+      parts.push('<span><strong>'+excluded.unstatused.count+' un-statused</strong> ('+fmt(excluded.unstatused.total)+') &mdash; needs Status set in Monday</span>');
+    }
+    if(excluded.other&&excluded.other.count>0){
+      var labels=Object.keys(excluded.other.statuses||{}).join(', ');
+      parts.push('<span><strong>'+excluded.other.count+' other</strong> ('+fmt(excluded.other.total)+(labels?': '+labels:'')+')</span>');
+    }
+    el.innerHTML=parts.length?parts.join('<span class="sep">|</span>'):'';
+  }
+
   fetch(PROXY).then(function(r){return r.json()}).then(function(d){
-    var bDisplay=d.backlog.remainingBacklog||0;
-    var fDisplay=d.forecast.forecastTotal||0;
-    document.getElementById('backlog-val').textContent=fmt(bDisplay);
-    document.getElementById('backlog-meta').textContent='Remaining Backlog • '+d.backlog.itemCount.toLocaleString()+' projects • Updated '+new Date(d.generatedAt).toLocaleString();
-    document.getElementById('forecast-val').textContent=fmt(fDisplay);
-    document.getElementById('forecast-meta').textContent=(d.forecast.source||'Forecast')+' • '+d.forecast.itemCount.toLocaleString()+' projects • Updated '+new Date(d.generatedAt).toLocaleString();
-    var bSvc=d.backlog.byServiceLine||[];
-    var fSvc=d.forecast.byServiceLine||[];
-    if(bSvc.length||fSvc.length){
-      document.getElementById('backlog-breakdown').style.display='';
+    var backlog=d.backlog||{};
+    var forecast=d.forecast||{};
+    var bDisplay=backlog.remainingBacklog||0;
+    var weighted=forecast.forecastTotal||0;
+    var gross=forecast.forecastGross||0;
+
+    // KPI strip
+    document.getElementById('backlog-val').textContent=fmtCompact(bDisplay);
+    document.getElementById('backlog-meta').textContent=(backlog.itemCount||0).toLocaleString()+' projects • Updated '+new Date(d.generatedAt).toLocaleString();
+    document.getElementById('forecast-val').textContent=fmtCompact(weighted);
+    document.getElementById('forecast-meta').textContent=(forecast.source||'Probability-Weighted Pipeline')+' • '+(forecast.itemCount||0).toLocaleString()+' open opportunities';
+    document.getElementById('gross-val').textContent=fmtCompact(gross);
+    document.getElementById('gross-meta').textContent=(forecast.itemCount||0).toLocaleString()+' open opportunities (unweighted)';
+
+    // Reconciliation
+    document.getElementById('recon-forecast').textContent=fmt(weighted);
+    document.getElementById('recon-backlog').textContent=fmt(bDisplay);
+    document.getElementById('recon-total').textContent=fmt(weighted+bDisplay);
+
+    // Funnel + service-line bars + footnote
+    var byStatus=forecast.byStatus||[];
+    var fSvc=forecast.byServiceLine||[];
+    var bSvc=backlog.byServiceLine||[];
+    if(byStatus.length||bSvc.length||fSvc.length){
+      document.getElementById('funnel-wrap').style.display='';
+      var maxGross=0;
+      for(var i=0;i<byStatus.length;i++){ if(byStatus[i].gross>maxGross) maxGross=byStatus[i].gross; }
+      renderFunnel(byStatus,maxGross);
+      renderExcluded(forecast.excluded);
+
       var bLines=bSvc.map(function(s){return {name:s.group,val:s.total,clients:s.clients||[]}});
       var fLines=fSvc.map(function(s){return {name:s.group,val:s.total,clients:s.clients||[]}});
       var bMax=bLines.length?bLines[0].val:0;
@@ -1423,6 +1598,8 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
     document.getElementById('backlog-meta').textContent='Unable to load • '+e.message;
     document.getElementById('forecast-val').textContent='--';
     document.getElementById('forecast-meta').textContent='Unable to load • '+e.message;
+    document.getElementById('gross-val').textContent='--';
+    document.getElementById('gross-meta').textContent='&nbsp;';
   });
 })();
 
