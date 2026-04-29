@@ -902,8 +902,8 @@
       <div class="bd-ctl">
         <label for="bd-min">Min $ (weighted)</label>
         <select id="bd-min">
-          <option value="0">$0 (show all)</option>
-          <option value="1000" selected>$1K</option>
+          <option value="0" selected>$0 (show all)</option>
+          <option value="1000">$1K</option>
           <option value="5000">$5K</option>
           <option value="25000">$25K</option>
           <option value="100000">$100K</option>
@@ -1643,7 +1643,7 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
   // Renders item-level (or aggregated) detail for every project that feeds
   // the headline Backlog & Weighted Forecast metrics. Sortable, filterable.
   var bdRawItems=[]; // populated by initBdDetail
-  var bdState={view:'agg',source:'all',search:'',min:1000,sortKey:'weighted',sortDir:'desc'};
+  var bdState={view:'agg',source:'all',search:'',min:0,sortKey:'weighted',sortDir:'desc'};
 
   function initBdDetail(items){
     bdRawItems=items||[];
