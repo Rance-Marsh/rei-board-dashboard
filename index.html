@@ -155,7 +155,8 @@
   .export-btn:hover{background:rgba(200,16,46,.6);border-color:rgba(255,255,255,.35)}
   .export-btn .caret{font-size:9px;opacity:.85}
   .export-btn[disabled]{opacity:.55;cursor:wait}
-  .export-menu{position:absolute;top:calc(100% + 4px);right:0;background:#1a1a1e;border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.5);min-width:190px;z-index:20;display:none;overflow:hidden}
+  /* position:fixed so the menu can escape the topbar's overflow:hidden clipping. JS positions it under the button. */
+  .export-menu{position:fixed;top:0;left:0;background:#1a1a1e;border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.5);min-width:190px;z-index:1100;display:none;overflow:hidden}
   .export-menu.open{display:block}
   .export-menu button{width:100%;text-align:left;background:transparent;border:none;color:var(--ink);font-size:12px;padding:10px 14px;cursor:pointer;font-family:inherit}
   .export-menu button:hover{background:rgba(200,16,46,.18);color:#fff}
@@ -1918,8 +1919,34 @@ document.querySelectorAll('.sub-tab').forEach(function(btn){
   var menu = document.getElementById('exportMenu');
   if (!btn || !menu) return;
 
-  function closeMenu(){ menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); }
-  function openMenu(){  menu.classList.add('open');    btn.setAttribute('aria-expanded','true');  }
+  function positionMenu(){
+    if (!menu.classList.contains('open')) return;
+    var r = btn.getBoundingClientRect();
+    var menuW = menu.offsetWidth || 190;
+    // Drop below the button, right-align with the button's right edge
+    var top  = Math.round(r.bottom + 4);
+    var left = Math.round(r.right - menuW);
+    // Keep on-screen with an 8px gutter
+    if (left < 8) left = 8;
+    var maxLeft = window.innerWidth - menuW - 8;
+    if (left > maxLeft) left = Math.max(8, maxLeft);
+    menu.style.top  = top  + 'px';
+    menu.style.left = left + 'px';
+  }
+  function closeMenu(){
+    menu.classList.remove('open');
+    btn.setAttribute('aria-expanded','false');
+    window.removeEventListener('resize', positionMenu);
+    window.removeEventListener('scroll', positionMenu, true);
+  }
+  function openMenu(){
+    menu.classList.add('open');
+    btn.setAttribute('aria-expanded','true');
+    positionMenu();
+    window.addEventListener('resize', positionMenu);
+    // capture-phase so we catch scroll on any ancestor
+    window.addEventListener('scroll', positionMenu, true);
+  }
 
   btn.addEventListener('click', function(e){
     e.stopPropagation();
