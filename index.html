@@ -1173,6 +1173,24 @@ document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('clic
   postHeight();
 }));
 
+// Sync the initial active section to the active button. The first nav button
+// has class="active" (data-tab="snapshot") but the corresponding section is
+// not necessarily the first section in DOM order, so without this the active
+// tab can render blank until the user clicks a tab.
+(function syncInitialActive(){
+  var activeBtn = document.querySelector('nav.tabs button.active');
+  if (!activeBtn) return;
+  var targetId = activeBtn.dataset.tab;
+  var targetSec = document.getElementById(targetId);
+  if (!targetSec) return;
+  // Only re-sync if the active section is not the one the active button points to
+  var currentActive = document.querySelector('.section.active');
+  if (currentActive === targetSec) return;
+  document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+  targetSec.classList.add('active');
+  setTimeout(function(){ Object.values(Chart.instances).forEach(function(c){ try { c.resize(); } catch(e){} }); }, 50);
+})();
+
 // ============ Embed-mode URL parameter handling ============
 // Supported parameters:
 //   ?embed=1                → compact layout, transparent bg, hides footer
@@ -1883,17 +1901,41 @@ document.querySelectorAll('.sub-tab').forEach(function(btn){
   }
   var FILE_BASE = 'REI_Board_Dashboard_Q1_2026';
 
-  // ---- PDF export: render full multi-page PDF of every tab ----
+  // Return all sections in nav-button order (NOT DOM order). The DOM order
+  // and the nav order intentionally differ in this dashboard.
+  function getSectionsInNavOrder(){
+    var btns = Array.from(document.querySelectorAll('nav.tabs button[data-tab]'));
+    var seen = {};
+    var ordered = [];
+    btns.forEach(function(b){
+      var s = document.getElementById(b.dataset.tab);
+      if (s && !seen[b.dataset.tab]) { seen[b.dataset.tab] = true; ordered.push(s); }
+    });
+    // Append any sections that don't have a corresponding nav button so they
+    // still get exported (defensive — there shouldn't be any).
+    document.querySelectorAll('main > .section').forEach(function(s){
+      if (!seen[s.id]) { seen[s.id] = true; ordered.push(s); }
+    });
+    return ordered;
+  }
+
+  // ---- PDF export: render full multi-page PDF of every tab in nav order ----
   async function exportAsPdf(){
     closeMenu();
     btn.disabled = true;
     showStatus('Loading PDF engine\u2026', 10);
+    var main = document.querySelector('main');
+    var ordered = getSectionsInNavOrder();
+    // Snapshot the original child order so we can restore exactly afterward
+    var originalChildren = main ? Array.from(main.children) : null;
     try {
       await loadScript(EXPORT_LIBS.pdf);
       showStatus('Preparing all tabs\u2026', 25);
+      // Reorder sections in <main> so they render in nav order in the PDF.
+      // appendChild moves an existing child rather than cloning.
+      if (main) ordered.forEach(function(sec){ main.appendChild(sec); });
       document.body.classList.add('export-pdf');
       resizeAllCharts();
-      // Give layout + chart resize a moment to settle
       await wait(700);
       resizeAllCharts();
       await wait(300);
@@ -1910,7 +1952,7 @@ document.querySelectorAll('.sub-tab').forEach(function(btn){
         // blank page before every tab (including page 1).
         pagebreak: { mode: ['css', 'legacy'] }
       };
-      var target = document.querySelector('main') || document.body;
+      var target = main || document.body;
       await window.html2pdf().set(opt).from(target).save();
       showStatus('PDF saved.', 100);
       hideStatus(1500);
@@ -1920,17 +1962,21 @@ document.querySelectorAll('.sub-tab').forEach(function(btn){
       hideStatus(4500);
     } finally {
       document.body.classList.remove('export-pdf');
+      // Restore original DOM order so the live page is unchanged
+      if (main && originalChildren) {
+        originalChildren.forEach(function(child){ main.appendChild(child); });
+      }
       btn.disabled = false;
       setTimeout(resizeAllCharts, 150);
     }
   }
 
-  // ---- PowerPoint export: one widescreen slide per tab ----
+  // ---- PowerPoint export: one widescreen slide per tab, in nav order ----
   async function exportAsPptx(){
     closeMenu();
     btn.disabled = true;
     showStatus('Loading PowerPoint engine\u2026', 8);
-    var sections = Array.from(document.querySelectorAll('.section'));
+    var sections = getSectionsInNavOrder();
     var navButtons = document.querySelectorAll('nav.tabs button');
     var originalActiveId = (document.querySelector('.section.active') || {}).id || null;
     var originalActiveBtn = document.querySelector('nav.tabs button.active');
