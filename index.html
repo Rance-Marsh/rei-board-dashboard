@@ -902,9 +902,9 @@
       <div class="bd-ctl">
         <label for="bd-min">Min $ (weighted)</label>
         <select id="bd-min">
-          <option value="0">$0</option>
-          <option value="1000">$1K</option>
-          <option value="5000" selected>$5K</option>
+          <option value="0">$0 (show all)</option>
+          <option value="1000" selected>$1K</option>
+          <option value="5000">$5K</option>
           <option value="25000">$25K</option>
           <option value="100000">$100K</option>
           <option value="500000">$500K</option>
@@ -1643,7 +1643,7 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
   // Renders item-level (or aggregated) detail for every project that feeds
   // the headline Backlog & Weighted Forecast metrics. Sortable, filterable.
   var bdRawItems=[]; // populated by initBdDetail
-  var bdState={view:'agg',source:'all',search:'',min:5000,sortKey:'weighted',sortDir:'desc'};
+  var bdState={view:'agg',source:'all',search:'',min:1000,sortKey:'weighted',sortDir:'desc'};
 
   function initBdDetail(items){
     bdRawItems=items||[];
@@ -1756,6 +1756,33 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
       });
     });
 
+    // Compute per-source totals across the filtered rows so we can
+    // reconcile what's shown against the three headline KPI cards.
+    function sumBySource(arr, src){
+      var w=0, g=0, n=0;
+      for(var i=0;i<arr.length;i++){
+        var r=arr[i];
+        if(r.source!==src) continue;
+        w+=(r.weighted||0); g+=(r.gross||0);
+        n+=(bdState.view==='agg' ? (r.count||0) : 1);
+      }
+      return {weighted:w, gross:g, count:n};
+    }
+    var bSum=sumBySource(rows,'backlog');
+    var pSum=sumBySource(rows,'pipeline');
+
+    // Compare against full unfiltered totals (= the three headline KPIs)
+    function rawTotals(src, key){
+      var t=0;
+      for(var i=0;i<bdRawItems.length;i++){
+        if(bdRawItems[i].source===src) t+=(bdRawItems[i][key]||0);
+      }
+      return t;
+    }
+    var bRawW = rawTotals('backlog','weighted');
+    var pRawW = rawTotals('pipeline','weighted');
+    var pRawG = rawTotals('pipeline','gross');
+
     // Body
     if(!rows.length){
       body.innerHTML='<tr class="empty"><td colspan="'+cols.length+'">No projects match the current filters.</td></tr>';
@@ -1765,10 +1792,9 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
       var html=capped.map(function(r){
         return '<tr>'+cols.map(function(c){return '<td class="'+(c.cls||'')+'">'+c.render(r)+'</td>'}).join('')+'</tr>';
       }).join('');
-      // Totals row
-      var totWeighted=rows.reduce(function(s,r){return s+(r.weighted||0)},0);
-      var totGross=rows.reduce(function(s,r){return s+(r.gross||0)},0);
-      var totCount=bdState.view==='agg'?rows.reduce(function(s,r){return s+(r.count||0)},0):rows.length;
+      var totWeighted=bSum.weighted+pSum.weighted;
+      var totGross=bSum.gross+pSum.gross;
+      var totCount=bSum.count+pSum.count;
       var totRow='<tr class="tot">'+cols.map(function(c){
         if(c.key==='weighted') return '<td>'+fmt(totWeighted)+'</td>';
         if(c.key==='gross')    return '<td>'+fmt(totGross)+'</td>';
@@ -1777,12 +1803,31 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
         return '<td class="'+(c.cls||'')+'"></td>';
       }).join('')+'</tr>';
       body.innerHTML=html+totRow;
-      if(rows.length>capped.length){
-        sum.innerHTML='Showing first <strong>'+capped.length.toLocaleString()+'</strong> of <strong>'+rows.length.toLocaleString()+'</strong> matching rows · Tighten filters or raise the Min $ threshold to narrow results · Total below reflects ALL '+rows.length.toLocaleString()+' rows.';
-        return;
-      }
     }
-    sum.innerHTML='<strong>'+rows.length.toLocaleString()+'</strong> '+(bdState.view==='agg'?'client × service combinations':'projects')+' · Weighted total <strong>'+fmt(rows.reduce(function(s,r){return s+(r.weighted||0)},0))+'</strong> · Gross total <strong>'+fmt(rows.reduce(function(s,r){return s+(r.gross||0)},0))+'</strong>';
+
+    // Build reconciliation summary that ties displayed totals back to the
+    // three headline KPI cards above. Only show the parts relevant to the
+    // current Source filter so it stays readable.
+    var parts=[];
+    var rowLabel=(bdState.view==='agg'?'client × service combinations':'projects');
+    parts.push('<strong>'+rows.length.toLocaleString()+'</strong> '+rowLabel);
+
+    if(bdState.source==='all' || bdState.source==='backlog'){
+      var bGap = bRawW - bSum.weighted;
+      var bTxt = '<strong>Backlog (Won):</strong> '+fmt(bSum.weighted)+' shown of '+fmt(bRawW)+' headline';
+      if(bGap > 1) bTxt += ' <span style="color:var(--muted)">(filter hides '+fmt(bGap)+')</span>';
+      parts.push(bTxt);
+    }
+    if(bdState.source==='all' || bdState.source==='pipeline'){
+      var pGap = pRawW - pSum.weighted;
+      var pTxt = '<strong>Pipeline:</strong> '+fmt(pSum.weighted)+' weighted / '+fmt(pSum.gross)+' gross — of '+fmt(pRawW)+' weighted &amp; '+fmt(pRawG)+' gross headline';
+      if(pGap > 1) pTxt += ' <span style="color:var(--muted)">(filter hides '+fmt(pGap)+' weighted)</span>';
+      parts.push(pTxt);
+    }
+    if(rows.length>1500){
+      parts.push('<span style="color:var(--warn,#f59e0b)">Showing first 1,500 rows for browser performance — totals below reflect ALL '+rows.length.toLocaleString()+' filtered rows.</span>');
+    }
+    sum.innerHTML = parts.join(' &nbsp;·&nbsp; ');
   }
 
   function escHtml(s){
