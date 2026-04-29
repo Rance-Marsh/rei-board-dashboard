@@ -171,6 +171,33 @@
   body.export-pdf main{max-width:1280px}
   /* When capturing for PPT: hide the export button so it doesn't show in screenshots */
   body.export-ppt .export-wrap{visibility:hidden}
+  /* BD Detailed Backlog & Pipeline table */
+  .bd-detail-controls{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:flex-end;margin:12px 0 8px}
+  .bd-ctl{display:flex;flex-direction:column;gap:4px;min-width:140px}
+  .bd-ctl label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .bd-toggle{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#0f0f12}
+  .bd-toggle button{background:transparent;border:none;color:var(--ink);font-size:11.5px;padding:6px 10px;cursor:pointer;font-family:inherit;border-right:1px solid var(--line)}
+  .bd-toggle button:last-child{border-right:none}
+  .bd-toggle button.active{background:var(--rei-red);color:#fff;font-weight:600}
+  .bd-toggle button:not(.active):hover{background:rgba(200,16,46,.18)}
+  .bd-ctl input[type="search"],.bd-ctl select{background:#0f0f12;border:1px solid var(--line);color:var(--ink);font-size:12px;padding:6px 9px;border-radius:6px;font-family:inherit;min-width:200px}
+  .bd-ctl input[type="search"]:focus,.bd-ctl select:focus{outline:none;border-color:var(--rei-red)}
+  .bd-detail-summary{font-size:12px;color:var(--muted);margin:4px 0 8px}
+  .bd-detail-summary strong{color:var(--ink)}
+  .bd-detail-scroll{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#101013}
+  table.bd-detail-table{margin:0;font-size:11.5px}
+  table.bd-detail-table thead th{position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap;z-index:1}
+  table.bd-detail-table thead th:hover{background:#a40c25}
+  table.bd-detail-table thead th .arrow{display:inline-block;margin-left:4px;opacity:.55;font-size:9px}
+  table.bd-detail-table thead th.sort-asc .arrow,table.bd-detail-table thead th.sort-desc .arrow{opacity:1}
+  table.bd-detail-table tbody td{font-size:11.5px;padding:5px 8px}
+  table.bd-detail-table td.txt{text-align:left}
+  table.bd-detail-table tr.empty td{text-align:center;color:var(--muted);font-style:italic;padding:18px}
+  table.bd-detail-table tr.tot td{position:sticky;bottom:0;background:#161619;font-weight:700;border-top:2px solid var(--rei-red);z-index:1}
+  .bd-pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+  .bd-pill.backlog{background:rgba(15,123,63,.18);color:#5acc8d;border:1px solid rgba(15,123,63,.35)}
+  .bd-pill.pipeline{background:rgba(200,16,46,.18);color:#ff7383;border:1px solid rgba(200,16,46,.35)}
+  .bd-stage{display:inline-block;font-size:10.5px;color:var(--muted)}
   .loader{display:inline-block;width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--rei-red);border-radius:50%;animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .svc-bar{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:12px}
@@ -956,6 +983,57 @@
     <h3><span class="ic"></span>Coverage Map</h3>
     <iframe src="https://experience.arcgis.com/experience/8a8d5ffceba64b97a3ef0794a709defa" width="100%" height="600px" frameborder="0" style="border:1px solid var(--line);border-radius:8px;" allowfullscreen></iframe>
   </div>
+
+  <!-- Detailed Backlog & Pipeline Table -->
+  <div class="narr" id="bd-detail-wrap" style="margin-top:14px">
+    <h3><span class="ic"></span>Detailed Backlog &amp; Pipeline
+      <small style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0;font-size:11.5px">— every project that feeds the Backlog &amp; Weighted Forecast metrics above, live from Monday.com</small>
+    </h3>
+    <div class="bd-detail-controls">
+      <div class="bd-ctl">
+        <label>View</label>
+        <div class="bd-toggle">
+          <button type="button" class="active" data-view="agg">Aggregated (Client × Service)</button>
+          <button type="button" data-view="item">Per Project</button>
+        </div>
+      </div>
+      <div class="bd-ctl">
+        <label>Source</label>
+        <div class="bd-toggle">
+          <button type="button" class="active" data-src="all">All</button>
+          <button type="button" data-src="backlog">Backlog (Won)</button>
+          <button type="button" data-src="pipeline">Pipeline (Open)</button>
+        </div>
+      </div>
+      <div class="bd-ctl">
+        <label for="bd-search">Search client / project</label>
+        <input id="bd-search" type="search" placeholder="e.g. CCECA, Tri-County, Audit…" autocomplete="off">
+      </div>
+      <div class="bd-ctl">
+        <label for="bd-min">Min $ (weighted)</label>
+        <select id="bd-min">
+          <option value="0">$0</option>
+          <option value="1000">$1K</option>
+          <option value="5000" selected>$5K</option>
+          <option value="25000">$25K</option>
+          <option value="100000">$100K</option>
+          <option value="500000">$500K</option>
+        </select>
+      </div>
+    </div>
+    <div class="bd-detail-summary" id="bd-detail-summary">Loading project detail…</div>
+    <div class="bd-detail-scroll">
+      <table class="fin bd-detail-table" id="bd-detail-table">
+        <thead>
+          <tr id="bd-detail-head"></tr>
+        </thead>
+        <tbody id="bd-detail-body"></tbody>
+      </table>
+    </div>
+    <p class="legend" style="margin-top:10px">
+      <strong>How to read this:</strong> Backlog rows = work already won and executing (weight 100%, gross = weighted). Pipeline rows = open opportunities, weighted by their Monday.com stage probability (Discovery 15% · Negotiation 60% · Proposal 70% · Legal 85%). Use the <em>Source</em> toggle to isolate either bucket; the totals at the bottom always reflect the current filter.
+    </p>
+  </div>
 </section>
 
 <!-- ============ TEAM ============ -->
@@ -1636,6 +1714,9 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
       renderBars(document.getElementById('backlog-svc'),bLines,bMax,document.getElementById('backlog-legend'));
       renderBars(document.getElementById('forecast-svc'),fLines,fMax,document.getElementById('forecast-legend'));
     }
+
+    // Detailed Backlog & Pipeline table — feeds the same metric, item-level
+    initBdDetail((backlog.items||[]).concat(forecast.items||[]));
   }).catch(function(e){
     document.getElementById('backlog-val').textContent='--';
     document.getElementById('backlog-meta').textContent='Unable to load • '+e.message;
@@ -1643,7 +1724,159 @@ new Chart(document.getElementById('chartEb10y'),{type:'bar',
     document.getElementById('forecast-meta').textContent='Unable to load • '+e.message;
     document.getElementById('gross-val').textContent='--';
     document.getElementById('gross-meta').textContent='&nbsp;';
+    var s=document.getElementById('bd-detail-summary');
+    if(s) s.textContent='Unable to load project detail: '+e.message;
   });
+
+  // ============ BD Detailed Backlog & Pipeline Table ============
+  // Renders item-level (or aggregated) detail for every project that feeds
+  // the headline Backlog & Weighted Forecast metrics. Sortable, filterable.
+  var bdRawItems=[]; // populated by initBdDetail
+  var bdState={view:'agg',source:'all',search:'',min:5000,sortKey:'weighted',sortDir:'desc'};
+
+  function initBdDetail(items){
+    bdRawItems=items||[];
+    var ctrls=document.querySelector('.bd-detail-controls');
+    if(!ctrls) return;
+    ctrls.querySelectorAll('button[data-view]').forEach(function(b){
+      b.addEventListener('click',function(){
+        ctrls.querySelectorAll('button[data-view]').forEach(function(x){x.classList.remove('active')});
+        b.classList.add('active');
+        bdState.view=b.dataset.view;
+        // Re-pick a sensible default sort key when switching views
+        bdState.sortKey='weighted'; bdState.sortDir='desc';
+        renderBdDetail();
+      });
+    });
+    ctrls.querySelectorAll('button[data-src]').forEach(function(b){
+      b.addEventListener('click',function(){
+        ctrls.querySelectorAll('button[data-src]').forEach(function(x){x.classList.remove('active')});
+        b.classList.add('active');
+        bdState.source=b.dataset.src;
+        renderBdDetail();
+      });
+    });
+    var search=document.getElementById('bd-search');
+    var minSel=document.getElementById('bd-min');
+    if(search) search.addEventListener('input',function(){bdState.search=this.value.trim().toLowerCase();renderBdDetail()});
+    if(minSel) minSel.addEventListener('change',function(){bdState.min=Number(this.value)||0;renderBdDetail()});
+    renderBdDetail();
+  }
+
+  function renderBdDetail(){
+    var head=document.getElementById('bd-detail-head');
+    var body=document.getElementById('bd-detail-body');
+    var sum=document.getElementById('bd-detail-summary');
+    if(!head||!body||!sum) return;
+
+    // Filter raw items (source + search + min$)
+    var filtered=bdRawItems.filter(function(it){
+      if(bdState.source!=='all' && it.source!==bdState.source) return false;
+      if((it.weighted||0) < bdState.min) return false;
+      if(bdState.search){
+        var hay=((it.client||'')+' '+(it.project||'')+' '+(it.serviceLine||'')).toLowerCase();
+        if(hay.indexOf(bdState.search)===-1) return false;
+      }
+      return true;
+    });
+
+    var rows;
+    var cols;
+    if(bdState.view==='agg'){
+      // Aggregate by (client, serviceLine, source). Status reduced to mode.
+      var agg={};
+      filtered.forEach(function(it){
+        var key=it.source+'|'+(it.client||'Unknown')+'|'+(it.serviceLine||'—');
+        if(!agg[key]) agg[key]={source:it.source,client:it.client||'Unknown',serviceLine:it.serviceLine||'—',count:0,weighted:0,gross:0,stages:{}};
+        agg[key].count++;
+        agg[key].weighted+=(it.weighted||0);
+        agg[key].gross+=(it.gross||0);
+        agg[key].stages[it.status]=(agg[key].stages[it.status]||0)+1;
+      });
+      rows=Object.values(agg).map(function(r){
+        var stagesArr=Object.entries(r.stages).sort(function(a,b){return b[1]-a[1]}).map(function(e){return e[0]+(r.count>1?' ('+e[1]+')':'')});
+        r.status=stagesArr.join(', ');
+        return r;
+      });
+      cols=[
+        {key:'source',label:'Source',cls:'txt',width:'70px',render:function(r){return '<span class="bd-pill '+r.source+'">'+(r.source==='backlog'?'Backlog':'Pipeline')+'</span>'}},
+        {key:'client',label:'Client',cls:'txt',render:function(r){return escHtml(r.client)}},
+        {key:'serviceLine',label:'Service Line',cls:'txt',render:function(r){return escHtml(r.serviceLine)}},
+        {key:'status',label:'Stage(s)',cls:'txt',render:function(r){return '<span class="bd-stage">'+escHtml(r.status||'—')+'</span>'}},
+        {key:'count',label:'Projects',cls:'',width:'70px',render:function(r){return r.count.toLocaleString()},sortable:true,numeric:true},
+        {key:'weighted',label:'Weighted $',cls:'',width:'120px',render:function(r){return fmt(r.weighted)},sortable:true,numeric:true},
+        {key:'gross',label:'Gross $',cls:'',width:'120px',render:function(r){return fmt(r.gross)},sortable:true,numeric:true}
+      ];
+    } else {
+      rows=filtered.slice();
+      cols=[
+        {key:'source',label:'Source',cls:'txt',width:'70px',render:function(r){return '<span class="bd-pill '+r.source+'">'+(r.source==='backlog'?'Backlog':'Pipeline')+'</span>'}},
+        {key:'project',label:'Project / Deal',cls:'txt',render:function(r){return escHtml(r.project||'')}},
+        {key:'client',label:'Client',cls:'txt',render:function(r){return escHtml(r.client||'')}},
+        {key:'serviceLine',label:'Service Line',cls:'txt',render:function(r){return escHtml(r.serviceLine||'')}},
+        {key:'status',label:'Stage',cls:'txt',width:'90px',render:function(r){return '<span class="bd-stage">'+escHtml(r.status||'—')+'</span>'}},
+        {key:'weight',label:'Weight',cls:'',width:'70px',render:function(r){return Math.round((r.weight||0)*100)+'%'},sortable:true,numeric:true},
+        {key:'weighted',label:'Weighted $',cls:'',width:'110px',render:function(r){return fmt(r.weighted)},sortable:true,numeric:true},
+        {key:'gross',label:'Gross $',cls:'',width:'110px',render:function(r){return fmt(r.gross)},sortable:true,numeric:true}
+      ];
+    }
+
+    // Sort
+    var sk=bdState.sortKey, dir=bdState.sortDir==='asc'?1:-1;
+    rows.sort(function(a,b){
+      var av=a[sk], bv=b[sk];
+      if(typeof av==='string' || typeof bv==='string'){ av=String(av||'').toLowerCase(); bv=String(bv||'').toLowerCase(); return av<bv?-1*dir:av>bv?1*dir:0; }
+      return ((av||0)-(bv||0))*dir;
+    });
+
+    // Header (clickable for sort)
+    head.innerHTML=cols.map(function(c){
+      var sortCls=(c.key===sk?(dir>0?'sort-asc':'sort-desc'):'');
+      var arrow=c.key===sk?(dir>0?'▲':'▼'):'▾';
+      var w=c.width?(' style="width:'+c.width+'"'):'';
+      return '<th class="'+sortCls+'" data-key="'+c.key+'"'+w+'>'+c.label+'<span class="arrow">'+arrow+'</span></th>';
+    }).join('');
+    head.querySelectorAll('th').forEach(function(th){
+      th.addEventListener('click',function(){
+        var k=th.dataset.key;
+        if(bdState.sortKey===k){ bdState.sortDir=(bdState.sortDir==='asc'?'desc':'asc'); }
+        else { bdState.sortKey=k; bdState.sortDir='desc'; }
+        renderBdDetail();
+      });
+    });
+
+    // Body
+    if(!rows.length){
+      body.innerHTML='<tr class="empty"><td colspan="'+cols.length+'">No projects match the current filters.</td></tr>';
+    } else {
+      // Cap at 1500 rows for browser perf — show note if truncated
+      var capped=rows.slice(0,1500);
+      var html=capped.map(function(r){
+        return '<tr>'+cols.map(function(c){return '<td class="'+(c.cls||'')+'">'+c.render(r)+'</td>'}).join('')+'</tr>';
+      }).join('');
+      // Totals row
+      var totWeighted=rows.reduce(function(s,r){return s+(r.weighted||0)},0);
+      var totGross=rows.reduce(function(s,r){return s+(r.gross||0)},0);
+      var totCount=bdState.view==='agg'?rows.reduce(function(s,r){return s+(r.count||0)},0):rows.length;
+      var totRow='<tr class="tot">'+cols.map(function(c){
+        if(c.key==='weighted') return '<td>'+fmt(totWeighted)+'</td>';
+        if(c.key==='gross')    return '<td>'+fmt(totGross)+'</td>';
+        if(c.key==='count')    return '<td>'+totCount.toLocaleString()+'</td>';
+        if(c.key==='source')   return '<td class="txt"><strong>TOTAL</strong></td>';
+        return '<td class="'+(c.cls||'')+'"></td>';
+      }).join('')+'</tr>';
+      body.innerHTML=html+totRow;
+      if(rows.length>capped.length){
+        sum.innerHTML='Showing first <strong>'+capped.length.toLocaleString()+'</strong> of <strong>'+rows.length.toLocaleString()+'</strong> matching rows · Tighten filters or raise the Min $ threshold to narrow results · Total below reflects ALL '+rows.length.toLocaleString()+' rows.';
+        return;
+      }
+    }
+    sum.innerHTML='<strong>'+rows.length.toLocaleString()+'</strong> '+(bdState.view==='agg'?'client × service combinations':'projects')+' · Weighted total <strong>'+fmt(rows.reduce(function(s,r){return s+(r.weighted||0)},0))+'</strong> · Gross total <strong>'+fmt(rows.reduce(function(s,r){return s+(r.gross||0)},0))+'</strong>';
+  }
+
+  function escHtml(s){
+    return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});
+  }
 })();
 
 // Sub-tab switching within Tech & AI
